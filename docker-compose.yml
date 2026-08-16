@@ -1,0 +1,109 @@
+name: gvms
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gvms-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ongc_lab}
+      POSTGRES_USER: ${POSTGRES_USER:-ongc_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ONGC_Lab_Secure_Pass2026!}
+    ports:
+      - "${POSTGRES_PORT_HOST:-5433}:5432"
+    volumes:
+      - gvms_postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - gvms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ongc_admin} -d ${POSTGRES_DB:-ongc_lab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gvms-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-ongc_admin}:${POSTGRES_PASSWORD:-ONGC_Lab_Secure_Pass2026!}@postgres:5432/${POSTGRES_DB:-ongc_lab}
+      - SECRET_KEY=${SECRET_KEY:-ongc_lab_super_secret_jwt_key_32bytes_min_length_2026}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER:-admin@ongc.co.in}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-Admin@123456}
+      - FIRST_SUPERUSER_NAME=${FIRST_SUPERUSER_NAME:-GVMS Chief Geochemist}
+      - METABASE_EMBED_SECRET_KEY=${METABASE_EMBED_SECRET_KEY:-23485ab9403816ca3de0927df8b461b3690d5fcd715456209be3cd1ef381da23}
+      - METABASE_DASHBOARD_ID=${METABASE_DASHBOARD_ID:-1}
+    ports:
+      - "${FASTAPI_PORT:-8001}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gvms-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: gvms-metabase
+    restart: always
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${POSTGRES_DB:-ongc_lab}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER:-ongc_admin}
+      MB_DB_PASS: ${POSTGRES_PASSWORD:-ONGC_Lab_Secure_Pass2026!}
+      MB_DB_HOST: postgres
+      MB_ENABLE_EMBEDDING: "true"
+      MB_EMBED_SECRET_KEY: ${METABASE_EMBED_SECRET_KEY:-23485ab9403816ca3de0927df8b461b3690d5fcd715456209be3cd1ef381da23}
+    ports:
+      - "${METABASE_PORT:-3002}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gvms-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gvms-frontend
+    restart: always
+    ports:
+      - "${REACT_PORT:-3001}:3000"
+    depends_on:
+      - backend
+    networks:
+      - gvms-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: gvms-nginx
+    restart: always
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+      - metabase
+    networks:
+      - gvms-network
+
+networks:
+  gvms-network:
+    driver: bridge
+
+volumes:
+  gvms_postgres_data:
