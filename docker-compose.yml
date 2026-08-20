@@ -37,10 +37,11 @@ services:
       - FIRST_SUPERUSER=${FIRST_SUPERUSER:-admin@ongc.co.in}
       - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-Admin@123456}
       - FIRST_SUPERUSER_NAME=${FIRST_SUPERUSER_NAME:-GVMS Chief Geochemist}
+      - METABASE_PUBLIC_URL=${METABASE_PUBLIC_URL:-http://localhost/metabase}
       - METABASE_EMBED_SECRET_KEY=${METABASE_EMBED_SECRET_KEY:-23485ab9403816ca3de0927df8b461b3690d5fcd715456209be3cd1ef381da23}
-      - METABASE_DASHBOARD_ID=${METABASE_DASHBOARD_ID:-1}
+      - METABASE_DASHBOARD_ID=${METABASE_DASHBOARD_ID:-2}
     ports:
-      - "${FASTAPI_PORT:-8001}:8000"
+      - "${FASTAPI_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +67,7 @@ services:
       MB_ENABLE_EMBEDDING: "true"
       MB_EMBED_SECRET_KEY: ${METABASE_EMBED_SECRET_KEY:-23485ab9403816ca3de0927df8b461b3690d5fcd715456209be3cd1ef381da23}
     ports:
-      - "${METABASE_PORT:-3002}:3000"
+      - "${METABASE_PORT:-3001}:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,7 +81,7 @@ services:
     container_name: gvms-frontend
     restart: always
     ports:
-      - "${REACT_PORT:-3001}:3000"
+      - "${REACT_PORT:-3000}:3000"
     depends_on:
       - backend
     networks:
@@ -91,7 +92,7 @@ services:
     container_name: gvms-nginx
     restart: always
     ports:
-      - "${NGINX_PORT:-8080}:80"
+      - "${NGINX_PORT:-80}:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

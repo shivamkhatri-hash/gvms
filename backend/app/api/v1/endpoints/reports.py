@@ -21,6 +21,7 @@ def download_report(
     sample_type: Optional[str] = Query(None),
     depth_min: Optional[float] = Query(None),
     depth_max: Optional[float] = Query(None),
+    include_graphs: Optional[str] = Query(None, description="Comma-separated graph types to include in PDF"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Any:
@@ -40,14 +41,20 @@ def download_report(
     # 3. Build dynamic WHERE filter
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = dataset.sql_table_name if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
-        table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
-        table_name = "DL_BIOMARKER_HOPANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
-        table_name = "DL_BIOMARKER_AROMATIC_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_PR_PH_":
-        table_name = "DL_BIOMARKER_PR_PH_VW"
+    
+    # Redirect tables to views if matching view exists
+    TABLE_TO_VIEW_MAP = {
+        "DL_BIOMARKER_STERANE": "DL_BIOMARKER_STERANE_VW",
+        "DL_BIOMARKER_HOPANE": "DL_BIOMARKER_HOPANE_VW",
+        "DL_TRICYCLIC_TERPANE_": "DL_BIOM_TRICYCLIC_TERP_VW",
+        "DL_BIOMARKER_AROMATIC_": "DL_BIOMARKER_AROMATIC_VW",
+        "DL_BIOMARKER_PR_PH_": "DL_BIOMARKER_PR_PH_VW",
+        "DL_ISOTOPE_GAS": "DL_ISOTOPE_GAS_VW",
+        "DL_ISOTOPE_OIL": "DL_ISOTOPE_OIL_VW",
+        "DL_ISOTOPE_CSIA": "DL_ISOTOPE_CSIA_VW"
+    }
+    if table_name and table_name.upper() in TABLE_TO_VIEW_MAP:
+        table_name = TABLE_TO_VIEW_MAP[table_name.upper()]
 
     active_version = None
     if is_custom:
@@ -72,7 +79,15 @@ def download_report(
         params["well_name"] = well_name
 
     if sample_type and sample_type != "ALL":
-        col = "LITHOLOGY" if dataset.name == "core_source_rock" else "sample_type"
+        # Find which column in this dataset represents lithology or sample type (case-insensitive)
+        col = None
+        for v in variables:
+            if v.sql_column_name.lower() in ["sample_type", "lithology"]:
+                col = v.sql_column_name
+                break
+        if not col:
+            col = "LITHOLOGY" if dataset.name == "core_source_rock" else "sample_type"
+
         if is_custom:
             where_clauses.append(f'"{col}" = :sample_type')
         else:
@@ -99,7 +114,7 @@ def download_report(
     # 4. Fetch flat record structures
     if is_custom:
         cols_str = ", ".join([f'"{v.sql_column_name}"' for v in variables])
-        query = f'SELECT id, {cols_str} FROM "{table_name}" WHERE {where_str}'
+        query = f"SELECT id, {cols_str} FROM {table_name} WHERE {where_str}"
     else:
         query = f"SELECT id, data FROM {table_name} WHERE {where_str}"
 
@@ -142,7 +157,15 @@ def download_report(
             headers={"Content-Disposition": f"attachment; filename={filename_base}.xlsx"}
         )
     else:  # pdf
-        data_bytes = ReportGenerator.generate_pdf(cast(str, dataset.display_name), variables, records)
+        selected_graphs = []
+        if include_graphs:
+            graph_types = [g.strip() for g in include_graphs.split(",") if g.strip()]
+            ds_graphs = dataset.graph_config or []
+            for g in ds_graphs:
+                if g.get("type") in graph_types:
+                    selected_graphs.append(g)
+
+        data_bytes = ReportGenerator.generate_pdf(cast(str, dataset.display_name), variables, records, selected_graphs)
         return Response(
             content=data_bytes,
             media_type="application/pdf",

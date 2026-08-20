@@ -86,6 +86,22 @@ export const Layout: React.FC = () => {
     }
 
 
+    const isGlobalTab = [
+      '/reports', 
+      '/metabase', 
+      '/users', 
+      '/logs', 
+      '/settings'
+    ].some(path => pathname.startsWith(path));
+
+    if (isGlobalTab) {
+      return {
+        name: 'GVMS',
+        emoji: '🔥',
+        subtitle: 'Graphical Visualization Management System'
+      };
+    }
+
     if (labKey === 'geochemistry' || pathname === '/' || pathname.startsWith('/dashboard') || !labKey) {
       return {
         name: 'Source Rock Laboratory',
@@ -102,6 +118,7 @@ export const Layout: React.FC = () => {
   };
 
   const lab = getLabContext(location.pathname, queryLab);
+  const isMetabase = location.pathname.endsWith('/metabase');
 
   return (
     <div className="h-screen bg-ongc-bg flex overflow-hidden">
@@ -111,8 +128,12 @@ export const Layout: React.FC = () => {
       {/* Main content wrapper */}
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0 h-full">
         <Header setSidebarOpen={setSidebarOpen} />
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
-          <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <div className={`flex-1 ${isMetabase ? 'overflow-hidden flex flex-col' : 'overflow-y-auto scrollbar-thin'}`}>
+          <main className={`w-full mx-auto ${
+            isMetabase 
+              ? 'p-4 sm:p-6 max-w-none flex-1 flex flex-col gap-4 min-h-0' 
+              : 'p-4 sm:p-6 lg:p-8 max-w-7xl space-y-6'
+          }`}>
             {/* Dynamic Breadcrumbs & Unified Page Header */}
             <div className="border-b border-slate-200 pb-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 select-none mb-1.5">

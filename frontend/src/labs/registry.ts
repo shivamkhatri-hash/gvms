@@ -72,16 +72,18 @@ export const laboratories: Laboratory[] = [
     id: 'igc',
     name: 'IGC / CCUS / Inorganic Geochemistry Laboratory',
     emoji: '🌋',
-    isComingSoon: true,
-    items: []
+    isComingSoon: false,
+    items: [
+      { label: 'metal lab', path: '/igc/dashboard?dataset=trace_metal_', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] }
+    ]
   },
   {
     id: 'surface',
     name: 'Surface Geochemistry / MBER',
     emoji: '🧫',
-    isComingSoon: true,
+    isComingSoon: false,
     items: [
-      { label: 'Surface Geochemistry', path: '/surface/dashboard', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] }
+      { label: 'Microbiology Data', path: '/surface/dashboard?dataset=microbiology', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] }
     ]
   }
 ];

@@ -912,6 +912,142 @@ def init_db(db: Session) -> None:
     """))
     db.commit()
 
+    # Recreate DL_IGC_TRACE_METAL_ table and DL_IGC_TRACE_METAL_VW view to force updates
+    db.execute(text("DROP VIEW IF EXISTS DL_IGC_TRACE_METAL_VW CASCADE"))
+    db.execute(text("DROP TABLE IF EXISTS DL_IGC_TRACE_METAL_ CASCADE"))
+    db.commit()
+
+    db.execute(text("""
+        CREATE TABLE DL_IGC_TRACE_METAL_ (
+            ID SERIAL PRIMARY KEY,
+            UBHI VARCHAR(64),
+            NAME VARCHAR(150),
+            OBJECT_NO VARCHAR(100),
+            INTERVAL_TOP DOUBLE PRECISION,
+            INETRVAL_BOTTOM DOUBLE PRECISION,
+            FORMATION VARCHAR(150),
+            INTERVAL_DESC VARCHAR(500),
+            SAMPLING_DATE TIMESTAMP WITH TIME ZONE,
+            MATERIAL_TYPE VARCHAR(100),
+            DESCRIPTION VARCHAR(500),
+            ANALYSED_AT VARCHAR(200),
+            REMARKS VARCHAR(1000),
+            INSERT_USER VARCHAR(100),
+            INSERT_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UPDATE_USER VARCHAR(100),
+            UPDATE_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            BOREHOLE_ID INTEGER REFERENCES W_BOREHOLE(BOREHOLE_ID) ON DELETE SET NULL,
+            uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            -- Trace Metals
+            ALUMINIUM DOUBLE PRECISION, ARSENIC DOUBLE PRECISION, BARIUM DOUBLE PRECISION, BERYLLIUM DOUBLE PRECISION, BORON DOUBLE PRECISION,
+            CADMIUM DOUBLE PRECISION, CALCIUM DOUBLE PRECISION, CESIUM DOUBLE PRECISION, CHROMIUM DOUBLE PRECISION, COBALT DOUBLE PRECISION,
+            COPPER DOUBLE PRECISION, HAFNIUM DOUBLE PRECISION, IRIDIUM DOUBLE PRECISION, IRON DOUBLE PRECISION, LANTHANUM DOUBLE PRECISION,
+            LEAD DOUBLE PRECISION, LITHIUM DOUBLE PRECISION, MAGNESIUM DOUBLE PRECISION, MANGANESE DOUBLE PRECISION, MERCURY DOUBLE PRECISION,
+            MOLYBDENUM DOUBLE PRECISION, NICKEL DOUBLE PRECISION, NUBIUM DOUBLE PRECISION, POTASSIUM DOUBLE PRECISION, RHENIUM DOUBLE PRECISION,
+            RUBIDIUM DOUBLE PRECISION, SCANDINAVIUM DOUBLE PRECISION, SELENIUM DOUBLE PRECISION, SILVER DOUBLE PRECISION, SODIUM DOUBLE PRECISION,
+            STRONTIUM DOUBLE PRECISION, THORIUM DOUBLE PRECISION, TIN DOUBLE PRECISION, TITANIUM DOUBLE PRECISION, VANADIUM DOUBLE PRECISION,
+            ZINC DOUBLE PRECISION,
+            -- Isotopes
+            SC45 DOUBLE PRECISION, YB89 DOUBLE PRECISION, LA139 DOUBLE PRECISION, CE140 DOUBLE PRECISION, PR141 DOUBLE PRECISION, ND142 DOUBLE PRECISION,
+            ND143 DOUBLE PRECISION, ND144 DOUBLE PRECISION, SM144 DOUBLE PRECISION, ND145 DOUBLE PRECISION, ND146 DOUBLE PRECISION, SM147 DOUBLE PRECISION,
+            SM148 DOUBLE PRECISION, ND148 DOUBLE PRECISION, SM149 DOUBLE PRECISION, SM150 DOUBLE PRECISION, ND150 DOUBLE PRECISION, SM152 DOUBLE PRECISION,
+            EU153 DOUBLE PRECISION, SM154 DOUBLE PRECISION, GD157 DOUBLE PRECISION, TB159 DOUBLE PRECISION, DY163 DOUBLE PRECISION, HO165 DOUBLE PRECISION,
+            ER166 DOUBLE PRECISION, TM169 DOUBLE PRECISION, YB172 DOUBLE PRECISION, LU175 DOUBLE PRECISION, LU176 DOUBLE PRECISION, TH228 DOUBLE PRECISION,
+            TH229 DOUBLE PRECISION, TH230 DOUBLE PRECISION, TH232 DOUBLE PRECISION, BE9 DOUBLE PRECISION, GA69 DOUBLE PRECISION, GA71 DOUBLE PRECISION,
+            SE74 DOUBLE PRECISION, SE76 DOUBLE PRECISION, SE77 DOUBLE PRECISION, SE78 DOUBLE PRECISION, SE80 DOUBLE PRECISION, SE82 DOUBLE PRECISION,
+            RB85 DOUBLE PRECISION, RB87 DOUBLE PRECISION, BA130 DOUBLE PRECISION, BA132 DOUBLE PRECISION, CS133 DOUBLE PRECISION, BA134 DOUBLE PRECISION,
+            BA135 DOUBLE PRECISION, BA136 DOUBLE PRECISION, BA137 DOUBLE PRECISION, BA138 DOUBLE PRECISION, TL203 DOUBLE PRECISION, PB204 DOUBLE PRECISION,
+            TL205 DOUBLE PRECISION, PB205 DOUBLE PRECISION, PB206 DOUBLE PRECISION, PB207 DOUBLE PRECISION, PB208 DOUBLE PRECISION, PB210 DOUBLE PRECISION,
+            U232 DOUBLE PRECISION, U233 DOUBLE PRECISION, U234 DOUBLE PRECISION, U236 DOUBLE PRECISION, U238 DOUBLE PRECISION
+        )
+    """))
+    db.commit()
+
+    db.execute(text("""
+        CREATE VIEW DL_IGC_TRACE_METAL_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            COALESCE(b.BOREHOLE_NAME, t.NAME) AS well_name,
+            t.NAME, t.OBJECT_NO, t.INTERVAL_TOP, t.INETRVAL_BOTTOM, t.FORMATION, t.INTERVAL_DESC, t.SAMPLING_DATE,
+            t.MATERIAL_TYPE, t.DESCRIPTION, t.ANALYSED_AT, t.REMARKS, t.INSERT_USER, t.INSERT_DATE, t.UPDATE_USER, t.UPDATE_DATE,
+            t.BOREHOLE_ID, t.uploaded_by,
+            -- Trace metals
+            t.ALUMINIUM, t.ARSENIC, t.BARIUM, t.BERYLLIUM, t.BORON, t.CADMIUM, t.CALCIUM, t.CESIUM, t.CHROMIUM, t.COBALT,
+            t.COPPER, t.HAFNIUM, t.IRIDIUM, t.IRON, t.LANTHANUM, t.LEAD, t.LITHIUM, t.MAGNESIUM, t.MANGANESE, t.MERCURY,
+            t.MOLYBDENUM, t.NICKEL, t.NUBIUM, t.POTASSIUM, t.RHENIUM, t.RUBIDIUM, t.SCANDINAVIUM, t.SELENIUM, t.SILVER, t.SODIUM,
+            t.STRONTIUM, t.THORIUM, t.TIN, t.TITANIUM, t.VANADIUM, t.ZINC,
+            -- Isotopes / Elements
+            t.SC45, t.YB89, t.LA139, t.CE140, t.PR141, t.ND142, t.ND143, t.ND144, t.SM144, t.ND145, t.ND146, t.SM147,
+            t.SM148, t.ND148, t.SM149, t.SM150, t.ND150, t.SM152, t.EU153, t.SM154, t.GD157, t.TB159, t.DY163, t.HO165,
+            t.ER166, t.TM169, t.YB172, t.LU175, t.LU176, t.TH228, t.TH229, t.TH230, t.TH232, t.BE9, t.GA69, t.GA71,
+            t.SE74, t.SE76, t.SE77, t.SE78, t.SE80, t.SE82, t.RB85, t.RB87, t.BA130, t.BA132, t.CS133, t.BA134,
+            t.BA135, t.BA136, t.BA137, t.BA138, t.TL203, t.PB204, t.TL205, t.PB205, t.PB206, t.PB207, t.PB208,
+            t.PB210, t.U232, t.U233, t.U234, t.U236, t.U238
+        FROM DL_IGC_TRACE_METAL_ t
+        LEFT JOIN W_BOREHOLE b ON t.BOREHOLE_ID = b.BOREHOLE_ID;
+    """))
+    db.commit()
+
+    # Recreate DL_MICROBIOLOGY_DATA_ table and DL_MICROBIOLOGY_DATA_VW view to force updates
+    db.execute(text("DROP VIEW IF EXISTS DL_MICROBIOLOGY_DATA_VW CASCADE"))
+    db.execute(text("DROP TABLE IF EXISTS DL_MICROBIOLOGY_DATA_ CASCADE"))
+    db.commit()
+
+    db.execute(text("""
+        CREATE TABLE DL_MICROBIOLOGY_DATA_ (
+            ID SERIAL PRIMARY KEY,
+            UBHI VARCHAR(64),
+            SAMPLE_NO BIGINT,
+            LATITUDE DOUBLE PRECISION,
+            LONGITUDE DOUBLE PRECISION,
+            METHANE_C1 DOUBLE PRECISION,
+            ETHANE_C2 DOUBLE PRECISION,
+            PROPANE_C3 DOUBLE PRECISION,
+            ISO_BUTANE_IC4 DOUBLE PRECISION,
+            N_BUTANE_NC4 DOUBLE PRECISION,
+            ISO_PENTANE_IC5 DOUBLE PRECISION,
+            N_PENTANE_NC5 DOUBLE PRECISION,
+            WET_GAS_C2PLUS DOUBLE PRECISION,
+            TOTAL_GAS_C1PLUS DOUBLE PRECISION,
+            C1_BY_C2 DOUBLE PRECISION,
+            C1_BY_C2_PLUS_C3 DOUBLE PRECISION,
+            C2_BY_C3 DOUBLE PRECISION,
+            C3_BY_C1 DOUBLE PRECISION,
+            C1_BY_C1PLUS DOUBLE PRECISION,
+            PROPANE_OXI_COUNT INTEGER,
+            PROPANE_OXI_COUNT1 INTEGER,
+            PROPANOTROPHS_COUNT BIGINT,
+            BUTANE_OXI_COUNT BIGINT,
+            BUTANE_OXI_COUNT1 BIGINT,
+            BUTANOTROPHS_COUNT BIGINT,
+            REMARKS VARCHAR(2000),
+            INSERT_USER VARCHAR(64),
+            INSERT_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UPDATE_USER VARCHAR(64),
+            UPDATE_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            BOREHOLE_ID INTEGER NOT NULL REFERENCES W_BOREHOLE(BOREHOLE_ID) ON DELETE CASCADE,
+            uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL
+        )
+    """))
+    db.commit()
+
+    db.execute(text("""
+        CREATE VIEW DL_MICROBIOLOGY_DATA_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            COALESCE(b.BOREHOLE_NAME, t.UBHI) AS well_name,
+            t.SAMPLE_NO, t.LATITUDE, t.LONGITUDE,
+            t.METHANE_C1, t.ETHANE_C2, t.PROPANE_C3, t.ISO_BUTANE_IC4, t.N_BUTANE_NC4, t.ISO_PENTANE_IC5, t.N_PENTANE_NC5,
+            t.WET_GAS_C2PLUS, t.TOTAL_GAS_C1PLUS, t.C1_BY_C2, t.C1_BY_C2_PLUS_C3, t.C2_BY_C3, t.C3_BY_C1, t.C1_BY_C1PLUS,
+            t.PROPANE_OXI_COUNT, t.PROPANE_OXI_COUNT1, t.PROPANOTROPHS_COUNT, t.BUTANE_OXI_COUNT, t.BUTANE_OXI_COUNT1, t.BUTANOTROPHS_COUNT,
+            t.REMARKS, t.INSERT_USER, t.INSERT_DATE, t.UPDATE_USER, t.UPDATE_DATE, t.BOREHOLE_ID, t.uploaded_by
+        FROM DL_MICROBIOLOGY_DATA_ t
+        LEFT JOIN W_BOREHOLE b ON t.BOREHOLE_ID = b.BOREHOLE_ID;
+    """))
+    db.commit()
+
     # Seed Admin User
     admin = crud_user.get_by_email(db, email=settings.FIRST_SUPERUSER)
     if not admin:
@@ -1285,24 +1421,7 @@ def init_db(db: Session) -> None:
             "primary_well_column": "borehole_name",
             "description": "Source Rock Evaluation dataset from Cutting samples."
         },
-        "kinetics": {
-            "display_name": "Kinetics",
-            "sql_table_name": "DL_CL_KINETICS",
-            "module": "geochemistry",
-            "required_columns": ["depth", "frequency_factor"],
-            "primary_depth_column": "depth",
-            "primary_well_column": "well_name",
-            "description": "Kinetics Activation Energy (Ei) Distribution dataset."
-        },
-        "vro": {
-            "display_name": "VRo",
-            "sql_table_name": "DL_CL_VRO",
-            "module": "geochemistry",
-            "required_columns": ["depth_top", "depth_bottom", "average_vro"],
-            "primary_depth_column": "depth_top",
-            "primary_well_column": "well_name",
-            "description": "Vitrinite Reflectance (VRo) measurement dataset."
-        },
+
         "petroleum_geochem": {
             "display_name": "Petroleum Geochemistry",
             "sql_table_name": "petroleum_data",
@@ -1356,12 +1475,30 @@ def init_db(db: Session) -> None:
             "primary_depth_column": "depth",
             "primary_well_column": "name",
             "description": "Biomarker Laboratory Pristane and Phytane concentrations and calculated Pristane/Phytane ratio dataset."
+        },
+        "trace_metal_": {
+            "display_name": "metal lab",
+            "sql_table_name": "DL_IGC_TRACE_METAL_VW",
+            "module": "igc",
+            "required_columns": ["name", "object_no"],
+            "primary_depth_column": "interval_top",
+            "primary_well_column": "ubhi",
+            "description": "Inorganic Geochemistry Laboratory Trace Metals and Isotope/Element measurements."
+        },
+        "microbiology": {
+            "display_name": "Microbiology Data",
+            "sql_table_name": "DL_MICROBIOLOGY_DATA_VW",
+            "module": "surface",
+            "required_columns": ["sample_no"],
+            "primary_depth_column": None,
+            "primary_well_column": "ubhi",
+            "description": "Surface Geochemistry Laboratory Microbiology measurement dataset."
         }
     }
 
     for table_name in db_tables:
         t_upper = table_name.upper()
-        if not (t_upper.startswith("DL_CL_") or t_upper.startswith("DL_GAS_") or t_upper.startswith("DL_GCH_") or t_upper.startswith("DL_ISOTOPE_") or t_upper.startswith("DL_BIOMARKER_") or t_upper.startswith("DL_BIOM_") or t_upper == "PETROLEUM_DATA"):
+        if not (t_upper.startswith("DL_CL_") or t_upper.startswith("DL_GAS_") or t_upper.startswith("DL_GCH_") or t_upper.startswith("DL_ISOTOPE_") or t_upper.startswith("DL_BIOMARKER_") or t_upper.startswith("DL_BIOM_") or t_upper.startswith("DL_IGC_") or t_upper.startswith("DL_MICROBIOLOGY_") or t_upper == "PETROLEUM_DATA"):
             continue
             
         # Determine views that should be registered instead of tables
@@ -1373,7 +1510,9 @@ def init_db(db: Session) -> None:
             "DL_BIOMARKER_PR_PH_VW": "DL_BIOMARKER_PR_PH_",
             "DL_ISOTOPE_GAS_VW": "DL_ISOTOPE_GAS",
             "DL_ISOTOPE_OIL_VW": "DL_ISOTOPE_OIL",
-            "DL_ISOTOPE_CSIA_VW": "DL_ISOTOPE_CSIA"
+            "DL_ISOTOPE_CSIA_VW": "DL_ISOTOPE_CSIA",
+            "DL_IGC_TRACE_METAL_VW": "DL_IGC_TRACE_METAL_",
+            "DL_MICROBIOLOGY_DATA_VW": "DL_MICROBIOLOGY_DATA_"
         }
         
         # If this is a raw table that has a view counterpart, skip it
@@ -1391,10 +1530,7 @@ def init_db(db: Session) -> None:
             name = "core_source_rock"
         elif t_upper == "DL_CL_CUTTING_SOURCEROCK":
             name = "cutting_source_rock"
-        elif t_upper == "DL_CL_VRO":
-            name = "vro"
-        elif t_upper == "DL_CL_KINETICS":
-            name = "kinetics"
+
         elif t_upper == "DL_GAS_CHROMATOGRAPHY":
             name = "gas_chromatography"
         elif t_upper == "DL_GCH_OIL_COMPOSITION":
@@ -1415,16 +1551,23 @@ def init_db(db: Session) -> None:
             name = "aromatic_biomarkers"
         elif t_upper in ["DL_BIOMARKER_PR_PH_", "DL_BIOMARKER_PR_PH_VW"]:
             name = "pr_ph"
+        elif t_upper in ["DL_IGC_TRACE_METAL_", "DL_IGC_TRACE_METAL_VW"]:
+            name = "trace_metal_"
+        elif t_upper in ["DL_MICROBIOLOGY_DATA_", "DL_MICROBIOLOGY_DATA_VW"]:
+            name = "microbiology"
         else:
-            name = table_name.lower().replace("dl_cl_", "").replace("dl_gas_", "").replace("dl_gch_", "").replace("dl_isotope_", "").replace("dl_biomarker_", "").replace("dl_biom_", "")
+            name = table_name.lower().replace("dl_cl_", "").replace("dl_gas_", "").replace("dl_gch_", "").replace("dl_isotope_", "").replace("dl_biomarker_", "").replace("dl_biom_", "").replace("dl_igc_", "").replace("dl_microbiology_", "")
             
         # Get defaults
         known = KNOWN_DATASETS.get(name, {})
         display_name = known.get("display_name", name.replace("_", " ").title())
         module = known.get("module", "geochemistry")
-        required_cols = known.get("required_columns", [])
-        primary_depth = known.get("primary_depth_column")
-        primary_well = known.get("primary_well_column")
+        required_cols_val = known.get("required_columns")
+        required_cols = list(required_cols_val) if isinstance(required_cols_val, list) else []
+        primary_depth_val = known.get("primary_depth_column")
+        primary_depth = str(primary_depth_val) if primary_depth_val else None
+        primary_well_val = known.get("primary_well_column")
+        primary_well = str(primary_well_val) if primary_well_val else None
         description = known.get("description", f"Automatically registered dataset for table {table_name}")
         
         # Load columns metadata from db schema
@@ -1465,14 +1608,7 @@ def init_db(db: Session) -> None:
             graph_config = [
                 {"type": "scatter", "x_axis": "c1_by_c2_plus_c3", "y_axis": "delta_c1", "title": "Bernard Diagram (C1/(C2+C3) vs δ13C1)", "color": "#EC4899"}
             ]
-        elif name == "vro":
-            graph_config = [
-                {"type": "depth_profile", "x_axis": "average_vro", "y_axis": "depth_top", "title": "Average VRo Depth Profile", "color": "#2563EB"}
-            ]
-        elif name == "kinetics":
-            graph_config = [
-                {"type": "scatter", "x_axis": "hydrogen_index", "y_axis": "frequency_factor", "title": "Hydrogen Index vs Frequency Factor", "color": "#10B981"}
-            ]
+
         else:
             if primary_depth:
                 num_cols = [c["name"] for c in cols_meta if c["name"].upper() != "ID" and ("double" in str(c["type"]).lower() or "numeric" in str(c["type"]).lower() or "float" in str(c["type"]).lower()) and c["name"] != primary_depth]
@@ -1538,6 +1674,9 @@ def init_db(db: Session) -> None:
             db.refresh(ds)
             print(f"[+] Automatically registered dataset '{display_name}' ({name}) for SQL table {table_name}.")
         else:
+            setattr(ds, "display_name", display_name)
+            setattr(ds, "module", module)
+            setattr(ds, "description", description)
             setattr(ds, "sql_table_name", table_name.upper())
             setattr(ds, "mapping_config", mapping_config)
             setattr(ds, "required_columns", required_cols)
@@ -1957,6 +2096,64 @@ def init_db(db: Session) -> None:
                 print(f"[-] sample_csia_isotope.csv not found at {csv_path}. Skipping seed.")
     except Exception as seed_err:
         print(f"[-] Error seeding DL_ISOTOPE_CSIA on startup: {str(seed_err)}")
+
+    # Seed default sample data for trace_metal if table is empty
+    try:
+        res = db.execute(text("SELECT count(*) from DL_IGC_TRACE_METAL_")).scalar()
+        if res == 0:
+            print("[*] DL_IGC_TRACE_METAL_ is empty. Seeding default sample dataset...")
+            import os
+            csv_path = os.path.join(os.path.dirname(__file__), "sample_trace_metal.csv")
+            if os.path.exists(csv_path):
+                with open(csv_path, "rb") as f:
+                    file_bytes = f.read()
+                from app.services.csv_processor import CSVProcessor
+                from app.models.user import User
+                admin_user = db.query(User).filter(User.email == "admin@ongc.co.in").first()
+                admin_id = admin_user.id if admin_user else None
+                ds = db.query(DatasetRegistry).filter(DatasetRegistry.name == "trace_metal_").first()
+                if ds:
+                    processed = CSVProcessor.process_file(
+                        file_bytes=file_bytes,
+                        filename="sample_trace_metal.csv",
+                        db=db,
+                        uploader_id=cast(Any, admin_id),
+                        dataset_id=cast(int, ds.id)
+                    )
+                    print(f"[+] Successfully seeded {processed.get('imported_rows', 0)} trace metal records on startup!")
+            else:
+                print(f"[-] sample_trace_metal.csv not found at {csv_path}. Skipping seed.")
+    except Exception as seed_err:
+        print(f"[-] Error seeding DL_IGC_TRACE_METAL_ on startup: {str(seed_err)}")
+
+    # Seed default sample data for microbiology if table is empty
+    try:
+        res = db.execute(text("SELECT count(*) from DL_MICROBIOLOGY_DATA_")).scalar()
+        if res == 0:
+            print("[*] DL_MICROBIOLOGY_DATA_ is empty. Seeding default sample dataset...")
+            import os
+            csv_path = os.path.join(os.path.dirname(__file__), "sample_microbiology.csv")
+            if os.path.exists(csv_path):
+                with open(csv_path, "rb") as f:
+                    file_bytes = f.read()
+                from app.services.csv_processor import CSVProcessor
+                from app.models.user import User
+                admin_user = db.query(User).filter(User.email == "admin@ongc.co.in").first()
+                admin_id = admin_user.id if admin_user else None
+                ds = db.query(DatasetRegistry).filter(DatasetRegistry.name == "microbiology").first()
+                if ds:
+                    processed = CSVProcessor.process_file(
+                        file_bytes=file_bytes,
+                        filename="sample_microbiology.csv",
+                        db=db,
+                        uploader_id=cast(Any, admin_id),
+                        dataset_id=cast(int, ds.id)
+                    )
+                    print(f"[+] Successfully seeded {processed.get('imported_rows', 0)} microbiology records on startup!")
+            else:
+                print(f"[-] sample_microbiology.csv not found at {csv_path}. Skipping seed.")
+    except Exception as seed_err:
+        print(f"[-] Error seeding DL_MICROBIOLOGY_DATA_ on startup: {str(seed_err)}")
 
     # Seed default sample data for Hopane
     try:

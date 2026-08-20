@@ -10,6 +10,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,7 +23,7 @@ export const Login: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(
@@ -85,6 +86,21 @@ export const Login: React.FC = () => {
               icon={<Lock className="w-4 h-4" />}
               required
             />
+
+            <div className="flex items-center justify-between py-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-slate-300 text-ongc-blue focus:ring-ongc-blue w-4 h-4"
+                />
+                <span className="text-xs font-medium text-slate-600">Remember me on this device</span>
+              </label>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Session security
+              </div>
+            </div>
 
             <Button
               type="submit"

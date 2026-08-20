@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { authService } from '../services/auth.service';
+import { getStorageItem, setStorageItem, removeStorageItem } from '../utils/storage';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string, rememberMe?: boolean) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -18,7 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = getStorageItem('access_token');
     if (!token) {
       setUser(null);
       setIsLoading(false);
@@ -29,8 +30,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
     } catch (err) {
       console.error('Failed to load active user session', err);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      removeStorageItem('access_token');
+      removeStorageItem('refresh_token');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -41,12 +42,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
   }, []);
 
-  const login = async (email: string, pass: string) => {
+  const login = async (email: string, pass: string, rememberMe: boolean = false) => {
     setIsLoading(true);
     try {
       const data = await authService.login(email, pass);
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('refresh_token', data.refresh_token);
+      setStorageItem('access_token', data.access_token, rememberMe);
+      setStorageItem('refresh_token', data.refresh_token, rememberMe);
       await refreshUser();
     } finally {
       setIsLoading(false);
@@ -54,8 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    removeStorageItem('access_token');
+    removeStorageItem('refresh_token');
     setUser(null);
     window.location.href = '/login';
   };

@@ -19,6 +19,8 @@ import { TricyclicDashboard } from './pages/TricyclicDashboard';
 import { AromaticDashboard } from './pages/AromaticDashboard';
 import { PrPhDashboard } from './pages/PrPhDashboard';
 import { DynamicDashboard } from './pages/DynamicDashboard';
+import { InorganicDashboard } from './pages/InorganicDashboard';
+import { SurfaceDashboard } from './pages/SurfaceDashboard';
 import { Spinner } from './components/common/Spinner';
 
 const queryClient = new QueryClient({
@@ -94,6 +96,12 @@ export const App: React.FC = () => {
               {/* Isotope Laboratory Module Routing */}
               <Route path="isotope/dashboard" element={<GasIsotopeDashboard />} />
               <Route path="isotope/reports" element={<Reports module="isotope" />} />
+
+              {/* IGC (Inorganic Geochemistry) Laboratory Module Routing */}
+              <Route path="igc/dashboard" element={<InorganicDashboard />} />
+
+              {/* Surface Geochemistry / MBER Module Routing */}
+              <Route path="surface/dashboard" element={<SurfaceDashboard />} />
 
               {/* Biomarker Laboratory Module Routing */}
               <Route path="biomarker/sterane-dashboard" element={<SteraneDashboard />} />

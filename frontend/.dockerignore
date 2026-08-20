@@ -1,0 +1,11 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+tests/
+playwright.config.ts
+.git
+.gitignore
+.vscode
+.env
+production.env

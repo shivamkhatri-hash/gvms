@@ -11,8 +11,8 @@ import pandas as pd
 from sqlalchemy import create_engine, text, inspect, func
 from sqlalchemy.orm import Session
 
-# Override database URL to connect to local host port 5433 where docker port is mapped
-os.environ["DATABASE_URL"] = "postgresql://ongc_admin:ONGC_Lab_Secure_Pass2026!@localhost:5433/ongc_lab"
+# Override database URL to connect to local host port 5432 where docker port is mapped
+os.environ["DATABASE_URL"] = "postgresql://ongc_admin:ONGC_Lab_Secure_Pass2026!@localhost:5432/ongc_lab"
 
 from app.core.database import SessionLocal
 from app.models.registry import DatasetRegistry, VariableRegistry, DatasetVersion, VersionRecordMapping

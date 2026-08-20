@@ -31,8 +31,8 @@ export const MetabaseView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-xs">
+    <div className="flex-1 min-h-0 flex flex-col gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-xs shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Secure Metabase BI Portal</h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -53,7 +53,7 @@ export const MetabaseView: React.FC = () => {
       </div>
 
       {/* Integration Security Status Card */}
-      <Card className="bg-slate-50 border-slate-200">
+      <Card className="bg-slate-50 border-slate-200 shrink-0">
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
@@ -72,7 +72,7 @@ export const MetabaseView: React.FC = () => {
       </Card>
 
       {/* Embedded IFrame Viewport */}
-      <Card noPadding className="h-[750px] overflow-hidden border-slate-200 shadow-lg relative">
+      <Card noPadding className="flex-1 min-h-0 border-slate-200 shadow-lg relative">
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-20">
             <Spinner size="lg" />

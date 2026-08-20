@@ -599,6 +599,7 @@ export const GasChromatographyDashboard: React.FC = () => {
                         colorByLabel="Well No."
                         title="Pristane/nC17 vs Phytane/nC18"
                         onPointClick={setSelectedPoint}
+                        height="h-[700px]"
                       />
                     </div>
                   </Card>

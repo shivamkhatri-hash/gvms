@@ -14,13 +14,14 @@ interface DatasetDef {
   module: string;
   primary_well_column: string | null;
   variables: any[];
+  graph_config?: any[];
 }
 
 interface ReportsProps {
   module?: string;
 }
 
-export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => {
+export const Reports: React.FC<ReportsProps> = ({ module = 'all' }) => {
   const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
   const [format, setFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
   const [wellName, setWellName] = useState<string>('ALL');
@@ -28,6 +29,7 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
   const [depthMin, setDepthMin] = useState<string>('');
   const [depthMax, setDepthMax] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [selectedGraphs, setSelectedGraphs] = useState<string[]>([]);
 
   // 1. Fetch Registered Datasets
   const { data: datasets, isLoading: datasetsLoading } = useQuery<DatasetDef[]>({
@@ -36,6 +38,7 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
   });
 
   const filteredDatasets = React.useMemo(() => {
+    if (module === 'all') return datasets || [];
     return datasets?.filter((d) => d.module === module) || [];
   }, [datasets, module]);
 
@@ -54,6 +57,7 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
     setSampleType('ALL');
     setDepthMin('');
     setDepthMax('');
+    setSelectedGraphs([]);
   }, [selectedDatasetId]);
 
   // 2. Fetch Dataset-Specific Metadata for filter options
@@ -69,6 +73,10 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
   const wells = metadata?.wells || [];
   const sampleTypes = metadata?.sample_types || [];
 
+  const sampleTypeVar = activeDataset?.variables?.find(
+    (v) => v.sql_column_name.toLowerCase() === 'sample_type' || v.sql_column_name.toLowerCase() === 'lithology'
+  );
+
   const handleDownload = async () => {
     if (!selectedDatasetId) return;
     setIsDownloading(true);
@@ -78,6 +86,9 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
       if (sampleType !== 'ALL') filters.sample_type = sampleType;
       if (depthMin) filters.depth_min = parseFloat(depthMin);
       if (depthMax) filters.depth_max = parseFloat(depthMax);
+      if (format === 'pdf' && selectedGraphs.length > 0) {
+        filters.include_graphs = selectedGraphs.join(',');
+      }
 
       await reportsService.downloadReport(format, selectedDatasetId, filters);
     } catch (err) {
@@ -100,7 +111,7 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-xs">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            {module === 'oil' ? 'Oil Technical Reports' : 'Dynamic Technical Reports'}
+            {module === 'all' ? 'Global Technical Reports' : (module === 'oil' ? 'Oil Technical Reports' : 'Dynamic Technical Reports')}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Export executive summary reports, raw sample datasets, and structured spreadsheets.
@@ -113,11 +124,33 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
             onChange={(e) => setSelectedDatasetId(Number(e.target.value))}
             className="w-full text-xs font-semibold rounded-lg border-slate-200 bg-slate-50/50 py-2 px-3 text-slate-700 focus:ring-2 focus:ring-ongc-blue"
           >
-            {filteredDatasets?.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.display_name}
-              </option>
-            ))}
+            {module === 'all' ? (
+              ['geochemistry', 'oil', 'isotope', 'biomarker'].map((mod) => {
+                const modDatasets = filteredDatasets.filter((d) => d.module === mod);
+                if (modDatasets.length === 0) return null;
+                const labels: Record<string, string> = {
+                  geochemistry: 'Source Rock Geochemistry',
+                  oil: 'Oil Laboratory',
+                  isotope: 'Stable Isotope Laboratory',
+                  biomarker: 'Biomarker Laboratory',
+                };
+                return (
+                  <optgroup key={mod} label={labels[mod] || mod.toUpperCase()}>
+                    {modDatasets.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.display_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })
+            ) : (
+              filteredDatasets?.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.display_name}
+                </option>
+              ))
+            )}
           </select>
         </div>
       </div>
@@ -186,15 +219,17 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
               </div>
             )}
 
-            {activeDataset?.variables?.some((v) => v.sql_column_name === 'sample_type' || v.sql_column_name === 'LITHOLOGY') && (
+            {sampleTypeVar && (
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Filter by Lithology</label>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                  Filter by {sampleTypeVar.display_name || (sampleTypeVar.sql_column_name.toLowerCase() === 'sample_type' ? 'Sample Type' : 'Lithology')}
+                </label>
                 <select
                   value={sampleType}
                   onChange={(e) => setSampleType(e.target.value)}
                   className="w-full text-xs rounded-lg border-slate-200 bg-white py-2 px-3 focus:ring-2 focus:ring-ongc-blue"
                 >
-                  <option value="ALL">All Lithologies ({sampleTypes.length})</option>
+                  <option value="ALL">All {sampleTypeVar.display_name || (sampleTypeVar.sql_column_name.toLowerCase() === 'sample_type' ? 'Sample Types' : 'Lithologies')} ({sampleTypes.length})</option>
                   {sampleTypes.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -230,6 +265,58 @@ export const Reports: React.FC<ReportsProps> = ({ module = 'geochemistry' }) => 
               </>
             )}
           </div>
+ 
+          {/* Selectable Graphs Section (PDF format only) */}
+          {format === 'pdf' && activeDataset?.graph_config && activeDataset.graph_config.length > 0 && (
+            <div className="pt-4 border-t border-slate-100 space-y-3">
+              <div>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Include Visualizations in PDF Report</h4>
+                <p className="text-[10px] text-slate-405 mt-0.5">Select the subsurface plots and interpretations to render inside the executive document.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {activeDataset.graph_config.map((g: any) => {
+                  const isChecked = selectedGraphs.includes(g.type);
+                  return (
+                    <label
+                      key={g.type}
+                      className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer select-none transition-all duration-150 ${
+                        isChecked 
+                          ? 'border-ongc-blue bg-blue-50/10 shadow-xs' 
+                          : 'border-slate-100 hover:border-slate-200 bg-white'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            setSelectedGraphs(selectedGraphs.filter(type => type !== g.type));
+                          } else {
+                            setSelectedGraphs([...selectedGraphs, g.type]);
+                          }
+                        }}
+                        className="mt-0.5 rounded text-ongc-blue focus:ring-ongc-blue h-3.5 w-3.5"
+                      />
+                      <div>
+                        <span className="block text-xs font-bold text-slate-700 leading-tight">{g.title}</span>
+                        <span className="block text-[9px] text-slate-400 uppercase font-semibold tracking-wider mt-1">{g.type.replace(/_/g, ' ')}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Excel/CSV Tooltip warning */}
+          {format !== 'pdf' && activeDataset?.graph_config && activeDataset.graph_config.length > 0 && (
+            <div className="pt-4 border-t border-slate-100">
+              <div className="text-[10px] text-slate-400 italic font-semibold flex items-center gap-1.5 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                <span>ℹ️</span>
+                <span>Visualizations and interpretation plots are only available for PDF Technical Executive Reports. Excel and CSV export raw tabular structures directly.</span>
+              </div>
+            </div>
+          )}
 
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <Button

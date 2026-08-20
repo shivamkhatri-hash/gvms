@@ -4,11 +4,13 @@ import csv
 from typing import List, Dict, Any, cast
 from openpyxl import Workbook  # type: ignore
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # type: ignore
+from openpyxl.utils import get_column_letter  # type: ignore
 from reportlab.lib.pagesizes import letter, A4, landscape  # type: ignore
 from reportlab.lib import colors  # type: ignore
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable  # type: ignore
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image  # type: ignore
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
 from app.models.registry import VariableRegistry
+from typing import Optional
 
 
 class ReportGenerator:
@@ -37,7 +39,13 @@ class ReportGenerator:
         """Dynamically generate an Excel workbook using the registered column definitions and formatting."""
         wb = Workbook()
         ws = wb.active
-        ws.title = sheet_name[:30]  # Excel limits sheet name to 31 chars
+        if ws is None:
+            ws = wb.create_sheet()
+        # Excel sheet title sanitization: replace invalid characters \ / ? * : [ ] with _
+        cleaned_title = sheet_name
+        for char in ['\\', '/', '?', '*', ':', '[', ']']:
+            cleaned_title = cleaned_title.replace(char, '_')
+        ws.title = cleaned_title[:30]  # Excel limits sheet name to 31 chars
 
         # Styles
         header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
@@ -96,9 +104,9 @@ class ReportGenerator:
                     cell.alignment = align_left
 
         # Auto-fit columns
-        for col in ws.columns:
+        for col_idx, col in enumerate(ws.columns, start=1):
             max_len = max(len(str(cell.value or '')) for cell in col)
-            col_letter = col[0].column_letter
+            col_letter = get_column_letter(col_idx)
             ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 50)
 
         output = io.BytesIO()
@@ -109,7 +117,8 @@ class ReportGenerator:
     def generate_pdf(
         dataset_display_name: str,
         variables: List[VariableRegistry],
-        records: List[Dict[str, Any]]
+        records: List[Dict[str, Any]],
+        selected_graphs: Optional[List[Dict[str, Any]]] = None
     ) -> bytes:
         """Dynamically generate a styled landscape or portrait PDF containing the dataset and summary."""
         # 1. Filter columns that are visible (max 8 columns for layout rendering)
@@ -226,6 +235,155 @@ class ReportGenerator:
         ]))
         elements.append(t)
 
+        # 5. Selected Subsurface Charts & Visualizations
+        if selected_graphs and records:
+            elements.append(Spacer(1, 20))
+            elements.append(Paragraph("Visualizations & Dynamic Interpretations", section_style))
+            elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#CBD5E1'), spaceAfter=15))
+            
+            for g in selected_graphs:
+                try:
+                    x_col = g.get("x_axis")
+                    if not x_col or not isinstance(x_col, str):
+                        continue
+                    y_col = g.get("y_axis")
+                    if y_col is not None and not isinstance(y_col, str):
+                        y_col = None
+                    title = g.get("title", "Dataset Visualization")
+                    g_type = g.get("type", "scatter")
+                    
+                    img_bytes = ReportGenerator._create_matplotlib_plot(
+                        chart_type=g_type,
+                        x_col=x_col,
+                        y_col=y_col,
+                        title=title,
+                        records=records,
+                        x_label=x_col.upper(),
+                        y_label=y_col.upper() if y_col else None
+                    )
+                    
+                    if img_bytes:
+                        chart_img = Image(io.BytesIO(img_bytes), width=360, height=240)
+                        chart_img.hAlign = 'CENTER'
+                        elements.append(chart_img)
+                        elements.append(Spacer(1, 15))
+                except Exception as ex:
+                    print(f"Error generating matplotlib plot in PDF: {ex}")
+                    elements.append(Paragraph(f"[!] Error rendering visualization chart '{g.get('title')}'", styles['Normal']))
+                    elements.append(Spacer(1, 10))
+
         doc.build(elements)
         buffer.seek(0)
         return buffer.getvalue()
+
+    @staticmethod
+    def _create_matplotlib_plot(
+        chart_type: str,
+        x_col: str,
+        y_col: Optional[str],
+        title: str,
+        records: List[Dict[str, Any]],
+        x_label: str,
+        y_label: Optional[str]
+    ) -> bytes:
+        """Dynamically render custom matplotlib charts matching the look & feel of frontend Plotly charts."""
+        try:
+            import matplotlib  # type: ignore
+            matplotlib.use('Agg')  # Use non-interactive backend
+            import matplotlib.pyplot as plt  # type: ignore
+            import numpy as np
+
+            # Extract coordinates
+            x_vals = []
+            y_vals = []
+            
+            for r in records:
+                x_val = r.get(x_col)
+                y_val = r.get(y_col) if y_col else None
+                
+                if x_val is not None:
+                    try:
+                        x_vals.append(float(x_val))
+                    except (ValueError, TypeError):
+                        continue
+                else:
+                    continue
+                    
+                if y_col:
+                    if y_val is not None:
+                        try:
+                            y_vals.append(float(y_val))
+                        except (ValueError, TypeError):
+                            x_vals.pop()  # Maintain alignment
+                            continue
+                    else:
+                        x_vals.pop()
+                        continue
+
+            if not x_vals:
+                return b""
+
+            # Setup figure
+            fig, ax = plt.subplots(figsize=(6, 4))
+            
+            # Apply styling matching dashboard charts
+            if chart_type == 's2_vs_toc':
+                ax.scatter(x_vals, y_vals, color='#003366', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.set_xlim(0.1, 100)
+                ax.set_ylim(0.1, 100)
+                
+                # Classifications vertical reference lines (TOC guidelines)
+                ax.axvline(0.5, color='#06B6D4', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axvline(1.0, color='#F97316', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axvline(2.0, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axvline(4.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7)
+                
+                # Classifications horizontal reference lines (S2 guidelines)
+                ax.axhline(2.5, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axhline(5.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axhline(10.0, color='#16A34A', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axhline(20.0, color='#7C3AED', linestyle='--', linewidth=0.8, alpha=0.7)
+                
+            elif chart_type == 'hi_vs_tmax':
+                ax.scatter(x_vals, y_vals, color='#D97706', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                ax.set_xlim(400, 480)
+                ax.set_ylim(0, 700)
+                ax.axvline(435, color='#000000', linestyle='-', linewidth=0.8, alpha=0.5)
+                ax.axvline(470, color='#000000', linestyle='-', linewidth=0.8, alpha=0.5)
+                
+                # Maturity curve guidelines (Type II, III, etc.)
+                tmax_vals = np.linspace(400, 472, 100)
+                y_type_iii = 85 * (1 - 0.7 * ((tmax_vals - 400)/72)**2)
+                y_type_ii = 630 * (1 - 0.9 * ((tmax_vals - 400)/72)**2)
+                
+                ax.plot(tmax_vals, y_type_iii, color='#F97316', linestyle='-', linewidth=1, label='Type III', zorder=2)
+                ax.plot(tmax_vals, y_type_ii, color='#1E3A8A', linestyle='-', linewidth=1, label='Type II', zorder=2)
+                ax.legend(loc='upper right', fontsize=7)
+                
+            elif chart_type == 'depth_profile':
+                ax.scatter(x_vals, y_vals, color='#2563EB', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                ax.invert_yaxis()  # Invert depth log
+                
+            else: # Standard scatter
+                ax.scatter(x_vals, y_vals, color='#10B981', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+
+            ax.set_title(title, fontsize=10, fontweight='bold', color='#0F172A', pad=8)
+            ax.set_xlabel(x_label, fontsize=8, color='#475569')
+            ax.set_ylabel(y_label or 'Value', fontsize=8, color='#475569')
+            ax.grid(True, which='both', linestyle=':', color='#E2E8F0', linewidth=0.5)
+            
+            for spine in ['top', 'right']:
+                ax.spines[spine].set_visible(False)
+            for spine in ['left', 'bottom']:
+                ax.spines[spine].set_color('#CBD5E1')
+                ax.spines[spine].set_linewidth(0.8)
+
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+            plt.close(fig)
+            return buf.getvalue()
+        except Exception as e:
+            print(f"Failed to render matplotlib plot: {e}")
+            return b""

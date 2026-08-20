@@ -89,13 +89,13 @@ def provision():
         (
             "Laboratory Overview",
             "Total Samples",
-            "SELECT (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_KINETICS) + (SELECT COUNT(*) FROM DL_CL_VRO) as total_samples;",
+            "SELECT (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) as total_samples;",
             "scalar", 0, 4, 3
         ),
         (
             "Laboratory Overview",
             "Active Wells",
-            "SELECT COUNT(DISTINCT well_name) FROM (SELECT well_name FROM petroleum_data UNION SELECT BOREHOLE_NAME FROM DL_CL_CORE_SOURCEROCK UNION SELECT BOREHOLE_NAME FROM DL_CL_CUTTING_SOURCEROCK UNION SELECT WELL_NAME FROM DL_CL_KINETICS UNION SELECT WELL_NAME FROM DL_CL_VRO) as wells;",
+            "SELECT COUNT(DISTINCT well_name) FROM (SELECT well_name FROM petroleum_data UNION SELECT BOREHOLE_NAME FROM DL_CL_CORE_SOURCEROCK UNION SELECT BOREHOLE_NAME FROM DL_CL_CUTTING_SOURCEROCK) as wells;",
             "scalar", 4, 4, 3
         ),
         (
@@ -145,7 +145,7 @@ def provision():
         (
             "Sample Statistics",
             "Samples by Laboratory",
-            "SELECT 'Source Rock' as laboratory, (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_KINETICS) + (SELECT COUNT(*) FROM DL_CL_VRO) as sample_count UNION SELECT 'Oil', 0 UNION SELECT 'Stable Isotope', 0 UNION SELECT 'Biomarker', 0 UNION SELECT 'IGC/CCUS', 0 UNION SELECT 'Surface Geochem', 0;",
+            "SELECT 'Source Rock' as laboratory, (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) as sample_count UNION SELECT 'Oil', 0 UNION SELECT 'Stable Isotope', 0 UNION SELECT 'Biomarker', 0 UNION SELECT 'IGC/CCUS', 0 UNION SELECT 'Surface Geochem', 0;",
             "bar", 0, 12, 6
         ),
         (
@@ -157,13 +157,13 @@ def provision():
         (
             "Sample Statistics",
             "Samples by Well",
-            "SELECT well_name, COUNT(*) as sample_count FROM (SELECT well_name FROM petroleum_data UNION ALL SELECT BOREHOLE_NAME FROM DL_CL_CORE_SOURCEROCK UNION ALL SELECT BOREHOLE_NAME FROM DL_CL_CUTTING_SOURCEROCK UNION ALL SELECT WELL_NAME FROM DL_CL_KINETICS UNION ALL SELECT WELL_NAME FROM DL_CL_VRO) as combined WHERE well_name IS NOT NULL AND well_name <> '' GROUP BY well_name ORDER BY sample_count DESC LIMIT 10;",
+            "SELECT well_name, COUNT(*) as sample_count FROM (SELECT well_name FROM petroleum_data UNION ALL SELECT BOREHOLE_NAME FROM DL_CL_CORE_SOURCEROCK UNION ALL SELECT BOREHOLE_NAME FROM DL_CL_CUTTING_SOURCEROCK) as combined WHERE well_name IS NOT NULL AND well_name <> '' GROUP BY well_name ORDER BY sample_count DESC LIMIT 10;",
             "bar", 0, 8, 6
         ),
         (
             "Sample Statistics",
             "Samples by Formation",
-            "SELECT formation, COUNT(*) as sample_count FROM (SELECT FORMATION FROM DL_CL_KINETICS UNION ALL SELECT FORMATION FROM DL_CL_VRO) as combined WHERE formation IS NOT NULL AND formation <> '' GROUP BY formation ORDER BY sample_count DESC LIMIT 10;",
+            "SELECT formation, COUNT(*) as sample_count FROM (SELECT FORMATION FROM DL_GAS_CHROMATOGRAPHY UNION ALL SELECT FORMATION FROM DL_ISOTOPE_GAS) as combined WHERE formation IS NOT NULL AND formation <> '' GROUP BY formation ORDER BY sample_count DESC LIMIT 10;",
             "bar", 8, 8, 6
         ),
         (
@@ -221,7 +221,7 @@ def provision():
         (
             "Database Health",
             "Total Records",
-            "SELECT (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_KINETICS) + (SELECT COUNT(*) FROM DL_CL_VRO) + (SELECT COUNT(*) FROM upload_logs) + (SELECT COUNT(*) FROM audit_logs) as db_total_records;",
+            "SELECT (SELECT COUNT(*) FROM petroleum_data) + (SELECT COUNT(*) FROM DL_CL_CORE_SOURCEROCK) + (SELECT COUNT(*) FROM DL_CL_CUTTING_SOURCEROCK) + (SELECT COUNT(*) FROM upload_logs) + (SELECT COUNT(*) FROM audit_logs) as db_total_records;",
             "scalar", 0, 8, 3
         ),
         (
