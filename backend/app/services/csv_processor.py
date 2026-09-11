@@ -1136,7 +1136,7 @@ class CSVProcessor:
                         "c24tt": "c24",
                         "c25tt_r": "c25r",
                         "c25tt_s": "c25s",
-                        "c24tet_tt": "c24tet",
+                        "c24tet": "c24tet",
                         "c26tt_r": "c26r",
                         "c26tt_s": "c26s",
                         "perc_c19tt": "c19_ratio",
@@ -1147,7 +1147,7 @@ class CSVProcessor:
                         "perc_c24tt": "c24_ratio",
                         "perc_c25tt_r": "c25r_ratio",
                         "perc_c25tt_s": "c25s_ratio",
-                        "perc_c24tet_tt": "c24tet_ratio",
+                        "perc_c24tet": "c24tet_ratio",
                         "perc_c26tt_r": "c26r_ratio",
                         "perc_c26tt_s": "c26s_ratio"
                     }
@@ -1166,12 +1166,14 @@ class CSVProcessor:
                 
                 # If target_table is a view, resolve to the physical table for insert
                 VIEW_TO_TABLE = {
-                    "DL_BIOMARKER_STERANE_VW": "dl_biomarker_sterane",
-                    "DL_BIOMARKER_HOPANE_VW": "dl_biomarker_hopane",
+                    "DL_GAS_CHROMATOGRAPHY_VW": "dl_gas_chromatography_",
+                    "DL_GCH_OIL_COMPOSITION_VW": "dl_gch_oil_composition_",
+                    "DL_BIOMARKER_STERANE_VW": "dl_biomarker_sterane_",
+                    "DL_BIOMARKER_HOPANE_VW": "dl_biomarker_hopane_",
                     "DL_BIOM_TRICYCLIC_TERP_VW": "dl_tricyclic_terpane_",
                     "DL_BIOMARKER_AROMATIC_VW": "dl_biomarker_aromatic_",
                     "DL_BIOMARKER_PR_PH_VW": "dl_biomarker_pr_ph_",
-                    "DL_ISOTOPE_GAS_VW": "dl_isotope_gas",
+                    "DL_ISOTOPE_GAS_VW": "dl_isotope_gas_",
                     "DL_ISOTOPE_OIL_VW": "dl_isotope_oil",
                     "DL_ISOTOPE_CSIA_VW": "dl_isotope_csia",
                     "DL_IGC_TRACE_METAL_VW": "dl_igc_trace_metal_",

@@ -60,8 +60,9 @@ class Settings(BaseSettings):
     ORACLE_PORT: str = "1521"
     ORACLE_SERVICE_NAME: str = "ORCL"
     
-    # Enterprise Authentication Settings
+    # Enterprise Authentication & Testing Controls
     ENTERPRISE_AUTH_ENABLED: bool = False
+    AUTH_DISABLED: bool = False
 
     @property
     def sqlalchemy_database_url(self) -> str:
@@ -81,7 +82,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
-        env_file = ".env"
+        env_file = (".env", "../.env")
         extra = "allow"
 
 

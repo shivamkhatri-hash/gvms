@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.api.deps import get_db, get_current_user, require_roles
 from app.crud.crud_registry import crud_registry
 from app.crud.crud_log import crud_log
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.user import User
 from app.models.registry import DatasetRegistry, VariableRegistry, DatasetVersion
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 def get_dataset_record_count(db: Session, ds: DatasetRegistry) -> int:
     if ds.sql_table_name and ds.sql_table_name != "generic_dataset_records":
         try:
-            t_name = "DL_BIOMARKER_STERANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_STERANE" else ("DL_BIOMARKER_HOPANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_HOPANE" else ("DL_BIOMARKER_AROMATIC_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_AROMATIC_" else ("DL_BIOMARKER_PR_PH_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_PR_PH_" else ds.sql_table_name)))
+            t_name = "DL_BIOMARKER_STERANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_STERANE_" else ("DL_BIOMARKER_HOPANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_HOPANE_" else ("DL_BIOMARKER_AROMATIC_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_AROMATIC_" else ("DL_BIOMARKER_PR_PH_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_PR_PH_" else ds.sql_table_name)))
             res = db.execute(text(f"SELECT COUNT(*) FROM {t_name}"))
             return res.scalar() or 0
         except Exception:
@@ -187,10 +188,10 @@ def get_metadata(
     if not ds:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY) if connected/populated for CSIA Isotope
+    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY_) if connected/populated for CSIA Isotope
     if ds.name == "csia_isotope":
         try:
-            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
+            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY_ WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
             if prod_count > 0:
                 gc_dataset = db.query(DatasetRegistry).filter(DatasetRegistry.name == "gas_chromatography").first()
                 if gc_dataset:
@@ -207,12 +208,14 @@ def get_metadata(
     
     filter_options = {}
     filter_ranges = {}
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
     for var in variables:
         col = var.sql_column_name
+        col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
         try:
-            t_name = "DL_BIOMARKER_STERANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_STERANE" else ("DL_BIOMARKER_HOPANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_HOPANE" else ("DL_BIOMARKER_AROMATIC_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_AROMATIC_" else ("DL_BIOMARKER_PR_PH_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_PR_PH_" else ds.sql_table_name)))
+            t_name = "DL_BIOMARKER_STERANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_STERANE_" else ("DL_BIOMARKER_HOPANE_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_HOPANE_" else ("DL_BIOMARKER_AROMATIC_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_AROMATIC_" else ("DL_BIOMARKER_PR_PH_VW" if ds.sql_table_name.upper() == "DL_BIOMARKER_PR_PH_" else ds.sql_table_name)))
             if var.is_numeric:
-                res = db.execute(text(f'SELECT MIN("{col}"), MAX("{col}") FROM {t_name}'))
+                res = db.execute(text(f'SELECT MIN({col_ref}), MAX({col_ref}) FROM {t_name}'))
                 row_val = res.fetchone()
                 min_v, max_v = row_val if row_val else (None, None)
                 filter_ranges[col] = {
@@ -220,10 +223,11 @@ def get_metadata(
                     "max": float(max_v) if max_v is not None else 100.0
                 }
             else:
-                res = db.execute(text(f'SELECT DISTINCT "{col}" FROM {t_name} WHERE "{col}" IS NOT NULL'))
+                res = db.execute(text(f'SELECT DISTINCT {col_ref} FROM {t_name} WHERE {col_ref} IS NOT NULL'))
                 vals = [str(r[0]).strip() for r in res.fetchall() if r[0]]
                 filter_options[col] = sorted(list(set(vals)))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Metadata lookup note for column {col}: {e}")
             if var.is_numeric:
                 filter_ranges[col] = {"min": 0.0, "max": 100.0}
             else:
@@ -280,9 +284,9 @@ def get_dynamic_records(
 
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = dataset.sql_table_name if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
+    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE_":
         table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
+    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE_":
         table_name = "DL_BIOMARKER_HOPANE_VW"
     elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
         table_name = "DL_BIOMARKER_AROMATIC_VW"
@@ -293,14 +297,14 @@ def get_dynamic_records(
     variables = db.query(VariableRegistry).filter(VariableRegistry.dataset_id == dataset_id).all()
     var_map = {cast(str, v.sql_column_name): v for v in variables}
 
-    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY) if connected/populated for CSIA Isotope
+    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY_) if connected/populated for CSIA Isotope
     if dataset.name == "csia_isotope":
         try:
-            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
+            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY_ WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
             if prod_count > 0:
                 gc_dataset = db.query(DatasetRegistry).filter(DatasetRegistry.name == "gas_chromatography").first()
                 if gc_dataset:
-                    table_name = gc_dataset.sql_table_name or "DL_GAS_CHROMATOGRAPHY"
+                    table_name = gc_dataset.sql_table_name or "DL_GAS_CHROMATOGRAPHY_"
                     variables = db.query(VariableRegistry).filter(VariableRegistry.dataset_id == gc_dataset.id).all()
                     var_map = {cast(str, v.sql_column_name): v for v in variables}
                     dataset = gc_dataset
@@ -314,6 +318,7 @@ def get_dynamic_records(
         DatasetVersion.is_active == True
     ).first()
     active_version_id = cast(Optional[int], active_version.id) if active_version else None
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
 
     # Build dynamic WHERE filter
     q_params = dict(request.query_params)
@@ -327,13 +332,17 @@ def get_dynamic_records(
         for v in variables:
             if not v.is_numeric:
                 col = v.sql_column_name
+                col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
                 if is_custom:
-                    search_clauses.append(f'CAST("{col}" AS TEXT) ILIKE :search_str')
+                    if is_oracle:
+                        search_clauses.append(f"UPPER(TO_CHAR({col_ref})) LIKE :search_str")
+                    else:
+                        search_clauses.append(f'CAST({col_ref} AS TEXT) ILIKE :search_str')
                 else:
                     search_clauses.append(f"data->>'{col}' ILIKE :search_str")
         if search_clauses:
             where_str = f"({where_str}) AND ({' OR '.join(search_clauses)})"
-            params["search_str"] = f"%{search}%"
+            params["search_str"] = f"%{search.upper() if is_oracle else search}%"
 
     # Sorting logic
     order_clause = ""
@@ -343,32 +352,33 @@ def get_dynamic_records(
             order_clause = f" ORDER BY id {direction}"
         else:
             col = var_map[sort_by].sql_column_name
+            col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
             if is_custom:
-                order_clause = f' ORDER BY "{col}" {direction}'
+                order_clause = f' ORDER BY {col_ref} {direction}'
             else:
                 if var_map[sort_by].is_numeric:
                     order_clause = f" ORDER BY CAST(data->>'{col}' AS DOUBLE PRECISION) {direction}"
                 else:
                     order_clause = f" ORDER BY data->>'{col}' {direction}"
     else:
-        order_clause = " ORDER BY id ASC"
+        order_clause = f" ORDER BY {'ID' if is_oracle else 'id'} ASC"
 
     # Query total records count matching filters
     count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where_str}"
     total = db.execute(text(count_query), params).scalar() or 0
 
     # Pagination clause based on DB Provider
-    from app.core.config import settings
-    if settings.DATABASE_PROVIDER.lower() == "oracle":
+    if is_oracle:
         pagination_clause = f" OFFSET {skip} ROWS FETCH NEXT {limit} ROWS ONLY"
     else:
         pagination_clause = f" LIMIT {limit} OFFSET {skip}"
 
     # Query items
     if is_custom:
-        cols_to_select = [f'"{v.sql_column_name}"' for v in variables]
-        if "id" not in [v.sql_column_name.lower() for v in variables]:
-            cols_to_select.insert(0, "id")
+        cols_to_select = [f'"{v.sql_column_name.upper()}"' if is_oracle else f'"{v.sql_column_name}"' for v in variables]
+        id_col = "ID" if is_oracle else "id"
+        if id_col.lower() not in [v.sql_column_name.lower() for v in variables]:
+            cols_to_select.insert(0, id_col)
         query_str = f"SELECT {', '.join(cols_to_select)} FROM {table_name} WHERE {where_str}{order_clause}{pagination_clause}"
     else:
         query_str = f"SELECT id, data FROM {table_name} WHERE {where_str}{order_clause}{pagination_clause}"
@@ -379,10 +389,14 @@ def get_dynamic_records(
     for r in rows:
         row_dict = r._asdict()
         if is_custom:
-            items.append(row_dict)
+            norm_dict = {}
+            for k, val in row_dict.items():
+                norm_dict[k] = val
+                norm_dict[k.lower()] = val
+            items.append(norm_dict)
         else:
-            item_data = row_dict["data"] or {}
-            item_data["id"] = row_dict["id"]
+            item_data = row_dict.get("data") or row_dict.get("DATA") or {}
+            item_data["id"] = row_dict.get("id") or row_dict.get("ID")
             items.append(item_data)
 
     # Audit Logging

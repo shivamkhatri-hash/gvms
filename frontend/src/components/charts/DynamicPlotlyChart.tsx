@@ -130,16 +130,31 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
   const pointsArray = (points || []) as DataPoint[];
   const traces: any[] = [];
 
-  // Helper to group data by 'color_by' attribute
-  const groups: Record<string, DataPoint[]> = {};
+  // Count frequencies of each color_by value to determine if we exceed group limits
+  const freq: Record<string, number> = {};
   let hasGroups = false;
-
   pointsArray.forEach((pt) => {
     if (pt.color_by) {
       const g = String(pt.color_by);
+      freq[g] = (freq[g] || 0) + 1;
+      hasGroups = true;
+    }
+  });
+
+  // If unique group names exceed 50, we disable grouping and treat all points as a single uniform series (no legend)
+  const uniqueGroups = Object.keys(freq);
+  if (uniqueGroups.length > 50) {
+    hasGroups = false;
+  }
+
+  // Helper to group data by 'color_by' attribute
+  const groups: Record<string, DataPoint[]> = {};
+
+  pointsArray.forEach((pt) => {
+    if (hasGroups && pt.color_by) {
+      const g = String(pt.color_by);
       if (!groups[g]) groups[g] = [];
       groups[g].push(pt);
-      hasGroups = true;
     } else {
       if (!groups['Data']) groups['Data'] = [];
       groups['Data'].push(pt);
@@ -155,6 +170,7 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     let trace: any = {
       x: xVals,
       name: hasGroups ? groupName : title,
+      showlegend: hasGroups,
       customdata: groupPoints,
     };
 
@@ -166,7 +182,76 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     if (chartType === 'scatter' || chartType === 'depth_profile' || chartType === 's2_vs_toc' || chartType === 'hi_vs_tmax' || chartType === 'api_vs_depth' || chartType === 'pr_nc17_vs_ph_nc18') {
       trace.type = 'scatter';
       trace.mode = 'markers';
-      trace.marker = { size: 10, opacity: 0.9, line: { color: '#FFFFFF', width: 0.5 } };
+
+      // Define standard palette and symbols for explicit mapping
+      const colors = [
+        '#3b82f6', '#ef4444', '#10b981', '#8b5cf6', '#f59e0b',
+        '#ec4899', '#22c55e', '#6366f1', '#84cc16', '#14b8a6',
+        '#d97706', '#4f46e5'
+      ];
+      const symbols = ['circle', 'triangle-up', 'triangle-down', 'diamond', 'square', 'cross'];
+
+      // Find index of current group key to assign stable colors/symbols
+      const groupKeys = Object.keys(groups);
+      const groupIdx = groupKeys.indexOf(groupName);
+
+      let color = colors[groupIdx % colors.length];
+      let symbol = symbols[groupIdx % symbols.length];
+      let size = 10;
+
+      if (chartType === 'pr_nc17_vs_ph_nc18') {
+        const nameUpper = groupName.toUpperCase();
+        symbol = 'circle';
+        color = '#3b82f6';
+        size = 10;
+        
+        if (nameUpper === 'A' || nameUpper.includes('WELL A') || nameUpper === 'WELL_A') {
+          symbol = 'diamond';
+          color = '#0284c7';
+        } else if (nameUpper === 'B' || nameUpper.includes('WELL B') || nameUpper === 'WELL_B') {
+          symbol = 'square';
+          color = '#ec4899';
+        } else if (nameUpper === 'C' || nameUpper.includes('WELL C') || nameUpper === 'WELL_C') {
+          symbol = 'circle';
+          color = '#dc2626';
+        } else if (nameUpper === 'D' || nameUpper.includes('WELL D') || nameUpper === 'WELL_D') {
+          symbol = 'triangle-up';
+          color = '#16a34a';
+        } else if (nameUpper === 'E' || nameUpper.includes('WELL E') || nameUpper === 'WELL_E') {
+          symbol = 'plus';
+          color = '#ea580c';
+          size = 12;
+        } else if (nameUpper === 'F' || nameUpper.includes('WELL F') || nameUpper === 'WELL_F') {
+          symbol = 'asterisk';
+          color = '#d946ef';
+          size = 12;
+        } else if (nameUpper === 'G' || nameUpper.includes('WELL G') || nameUpper === 'WELL_G') {
+          symbol = 'x';
+          color = '#10b981';
+        } else if (nameUpper === 'H' || nameUpper.includes('WELL H') || nameUpper === 'WELL_H') {
+          symbol = 'line-ew';
+          color = '#8b5cf6';
+          size = 14;
+        } else {
+          const hash = nameUpper.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const prphColors = ['#0891b2', '#0d9488', '#4f46e5', '#7c3aed', '#db2777', '#ca8a04'];
+          const prphSymbols = ['circle', 'triangle-up', 'triangle-down', 'diamond', 'square', 'cross'];
+          color = prphColors[hash % prphColors.length];
+          symbol = prphSymbols[hash % prphSymbols.length];
+        }
+      }
+
+      // Explicitly assign trace marker attributes so they are rendered properly and match the legend!
+      trace.marker = {
+        symbol: symbol,
+        color: color,
+        size: size,
+        opacity: 0.9,
+        line: {
+          color: symbol === 'asterisk' || symbol === 'line-ew' || symbol === 'plus' ? color : '#000000',
+          width: symbol === 'asterisk' || symbol === 'line-ew' || symbol === 'plus' ? 0 : 0.8
+        }
+      };
       
       if (chartType === 's2_vs_toc') {
         trace.text = groupPoints.map(
@@ -486,10 +571,10 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     layout.yaxis.scaleanchor = 'x';
     layout.yaxis.scaleratio = 0.087912;
 
-    // X-axis limits: 400 to 480 °C
-    layout.xaxis.range = [400, 480];
-    layout.xaxis.tickvals = [400, 410, 420, 430, 440, 450, 460, 470, 480];
-    layout.xaxis.ticktext = ['400', '410', '420', '430', '440', '450', '460', '470', '480'];
+    // X-axis limits: 400 to 500 °C
+    layout.xaxis.range = [400, 500];
+    layout.xaxis.tickvals = [400, 410, 420, 430, 440, 450, 460, 470, 480, 490, 500];
+    layout.xaxis.ticktext = ['400', '410', '420', '430', '440', '450', '460', '470', '480', '490', '500'];
     delete layout.xaxis.rangemode;
 
     // Y-axis limits: 0 to 700
@@ -567,18 +652,24 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
 
   // Specialized layout config for Pristane/nC17 vs Phytane/nC18 plot
   if (chartType === 'pr_nc17_vs_ph_nc18') {
+    const log10 = Math.log10;
+    
     layout.paper_bgcolor = '#FFFFFF';
     layout.plot_bgcolor = '#FFFFFF';
+    layout.showlegend = true; // Show legend below plot
+    layout.margin = { l: 80, r: 80, t: 50, b: 80 }; // Compact margins to maximize plot size
 
     layout.xaxis.showline = true;
     layout.xaxis.mirror = true;
     layout.xaxis.linecolor = '#000000';
     layout.xaxis.linewidth = 2.5;
+    layout.xaxis.showgrid = false; // Match reference (no grids)
 
     layout.yaxis.showline = true;
     layout.yaxis.mirror = true;
     layout.yaxis.linecolor = '#000000';
     layout.yaxis.linewidth = 2.5;
+    layout.yaxis.showgrid = false; // Match reference (no grids)
 
     // Logarithmic axes
     layout.xaxis.type = 'log';
@@ -600,6 +691,17 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     layout.yaxis.scaleratio = 1.0;
     layout.yaxis.constrain = 'domain';
 
+    layout.xaxis.title = {
+      text: '<b>Phytane / nC<sub>18</sub></b>',
+      font: { color: '#000000', size: 12, family: 'Inter, sans-serif' }
+    };
+    layout.yaxis.title = {
+      text: '<b>Pristane / nC<sub>17</sub></b>',
+      font: { color: '#000000', size: 12, family: 'Inter, sans-serif' }
+    };
+    layout.xaxis.tickfont = { color: '#000000', size: 10, family: 'Inter, sans-serif' };
+    layout.yaxis.tickfont = { color: '#000000', size: 10, family: 'Inter, sans-serif' };
+
     layout.shapes = [
       // Diagonal constant ratio solid lines (slope = 1 on log-log represents constant y = C * x)
       { type: 'line', xref: 'x', yref: 'y', x0: 0.01, x1: 1.25, y0: 0.08, y1: 10.0, line: { color: '#000000', width: 1.0 } }, // Pr/Ph = 8
@@ -610,112 +712,116 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     ];
 
     layout.annotations = [
-      // Classification zone text labels parallel to the diagonals (textangle: 45)
+      // Classification zone text labels parallel to the diagonals (textangle: -45)
       {
         xref: 'x', yref: 'y',
-        x: 0.38, y: 2.2,
+        x: log10(0.80), y: log10(6.4),
         text: '<b>Terrestrial,<br>Type III</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.48, y: 1.2,
+        x: log10(1.20), y: log10(4.8),
         text: '<b>Terrestrial,<br>CoalyType III</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.62, y: 0.95,
+        x: log10(1.50), y: log10(3.0),
         text: '<b>Type II-Type III<br>mixture</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.85, y: 0.60,
+        x: log10(2.20), y: log10(2.2),
         text: '<b>Type II, reducing<br>algal, marine</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       },
 
-      // Directions/arrows annotations in black using pixel offsets (axref/ayref: pixel) to avoid log-axis scaling distortion
+      // Directions/arrows annotations in black on log-log grid coordinates
       // Biodegradation Arrow (pointing up-right above data points)
       {
         xref: 'x', yref: 'y',
-        x: 0.25, y: 1.1,
+        x: log10(0.20), y: log10(1.8),
+        axref: 'x', ayref: 'y',
+        ax: log10(0.08), ay: log10(0.7),
         showarrow: true,
-        arrowhead: 2, arrowsize: 1, arrowwidth: 1.2, arrowcolor: '#000000',
-        ax: -50, ay: 50,
+        arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5, arrowcolor: '#000000',
         text: ''
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.13, y: 0.55,
+        x: log10(0.125), y: log10(1.2),
         text: '<b>Biodegradation</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 11, family: 'Inter, sans-serif' }
       },
 
       // Maturation Arrow (pointing down-left below data points)
       {
         xref: 'x', yref: 'y',
-        x: 0.10, y: 0.033,
+        x: log10(0.09), y: log10(0.03),
+        axref: 'x', ayref: 'y',
+        ax: log10(0.22), ay: log10(0.07),
         showarrow: true,
-        arrowhead: 2, arrowsize: 1, arrowwidth: 1.2, arrowcolor: '#000000',
-        ax: 50, ay: -50,
+        arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5, arrowcolor: '#000000',
         text: ''
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.17, y: 0.06,
+        x: log10(0.16), y: log10(0.05),
         text: '<b>Maturation</b>',
         showarrow: false,
-        textangle: 45,
-        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
+        textangle: -45,
+        font: { color: '#000000', size: 11, family: 'Inter, sans-serif' }
       },
 
       // Oxidizing / Reducing arrows pointing outward from center
       // Oxidizing Arrow pointing up-left
       {
         xref: 'x', yref: 'y',
-        x: 0.36, y: 0.64,
+        x: log10(0.52), y: log10(0.85),
+        axref: 'x', ayref: 'y',
+        ax: log10(0.62), ay: log10(0.62),
         showarrow: true,
-        arrowhead: 2, arrowsize: 1, arrowwidth: 1.2, arrowcolor: '#000000',
-        ax: 30, ay: 30,
+        arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5, arrowcolor: '#000000',
         text: ''
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.30, y: 0.75,
+        x: log10(0.55), y: log10(0.92),
         text: '<b>Oxidizing</b>',
         showarrow: false,
-        textangle: -45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: 45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       },
 
       // Reducing Arrow pointing down-right
       {
         xref: 'x', yref: 'y',
-        x: 0.64, y: 0.36,
+        x: log10(0.75), y: log10(0.45),
+        axref: 'x', ayref: 'y',
+        ax: log10(0.62), ay: log10(0.62),
         showarrow: true,
-        arrowhead: 2, arrowsize: 1, arrowwidth: 1.2, arrowcolor: '#000000',
-        ax: -30, ay: -30,
+        arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5, arrowcolor: '#000000',
         text: ''
       },
       {
         xref: 'x', yref: 'y',
-        x: 0.70, y: 0.30,
+        x: log10(0.70), y: log10(0.38),
         text: '<b>Reducing</b>',
         showarrow: false,
-        textangle: -45,
-        font: { color: '#000000', size: 9, family: 'Inter, sans-serif' }
+        textangle: 45,
+        font: { color: '#000000', size: 10, family: 'Inter, sans-serif' }
       }
     ];
   }

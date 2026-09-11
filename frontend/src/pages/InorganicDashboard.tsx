@@ -51,13 +51,13 @@ export const InorganicDashboard: React.FC = () => {
   // Filters state
   const [filters, setFilters] = useState<Record<string, any>>({});
   const [activeFiltersCount, setActiveFiltersCount] = useState<number>(0);
-  const [showFilters, setShowFilters] = useState<boolean>(true);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   // Search filter options inside search boxes
   const [filterSearches, setFilterSearches] = useState<Record<string, string>>({});
 
   // Tabs state
-  const [activeTab, setActiveTab] = useState<'scientific' | 'builder'>('builder');
+  const [activeTab, setActiveTab] = useState<'scientific' | 'builder'>('scientific');
 
   // pagination and sorting state
   const [page, setPage] = useState(1);
@@ -176,15 +176,15 @@ export const InorganicDashboard: React.FC = () => {
 
   // 3. Fetch KPI Stats
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats-dynamic', selectedDatasetId, serializedFilters],
+    queryKey: ['dashboard-stats-dynamic', selectedDatasetId, filters],
     queryFn: () =>
       api.get<{
         total_samples: number;
         kpis: { name: string; avg: number; min: number; max: number }[];
-      }>('/dashboard/stats', {
+      }>('/dashboard', {
         params: {
           dataset_id: selectedDatasetId,
-          filters: serializedFilters,
+          ...filters,
         },
       }).then((res) => res.data),
     enabled: !!selectedDatasetId,
@@ -192,7 +192,7 @@ export const InorganicDashboard: React.FC = () => {
 
   // 4. Fetch Records list
   const { data: recordsData, isLoading: recordsLoading, refetch: refetchRecords } = useQuery({
-    queryKey: ['dashboard-records-dynamic', selectedDatasetId, serializedFilters, page, pageSize, sortBy, sortDesc],
+    queryKey: ['dashboard-records-dynamic', selectedDatasetId, filters, page, pageSize, sortBy, sortDesc],
     queryFn: () =>
       api.get<{
         total: number;
@@ -203,7 +203,7 @@ export const InorganicDashboard: React.FC = () => {
           limit: pageSize,
           sort_by: sortBy,
           sort_desc: sortDesc,
-          ...JSON.parse(serializedFilters),
+          ...filters,
         },
       }).then((res) => res.data),
     enabled: !!selectedDatasetId,
@@ -214,17 +214,16 @@ export const InorganicDashboard: React.FC = () => {
 
   // 5. Fetch Custom Chart Builder Data
   const { data: chartData, isLoading: chartLoading } = useQuery({
-    queryKey: ['custom-chart-data', selectedDatasetId, serializedFilters, xVar, yVar, colorBy, chartType],
+    queryKey: ['custom-chart-data', selectedDatasetId, filters, xVar, yVar, colorBy, chartType],
     queryFn: () =>
-      api.get<any[]>('/dashboard/scientific-plots', {
+      api.get('/dashboard/chart-data', {
         params: {
           dataset_id: selectedDatasetId,
-          plot_type: 'custom',
-          x_var: xVar,
-          y_var: yVar || undefined,
+          x_axis: xVar,
+          y_axis: yVar || undefined,
           color_by: colorBy || undefined,
           chart_type: chartType,
-          filters: serializedFilters,
+          ...filters,
         },
       }).then((res) => res.data),
     enabled: !!selectedDatasetId && !!xVar && !!chartType,
@@ -336,7 +335,7 @@ export const InorganicDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="hidden border-b border-slate-200">
         <button
           onClick={() => setActiveTab('builder')}
           className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
@@ -359,163 +358,148 @@ export const InorganicDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Filters & Visualizations Side-by-Side */}
-      <div className={`grid grid-cols-1 ${showFilters ? 'lg:grid-cols-4' : ''} gap-6`}>
-        {/* Left Side: Collapsible Filters */}
-        <Card className={`${showFilters ? 'lg:col-span-1' : 'w-full'} border border-slate-200/60 shadow-xs h-fit`} noPadding>
-          <div
-            className={`flex items-center justify-between cursor-pointer px-6 py-4 ${
-              showFilters ? 'border-b border-slate-100' : ''
-            }`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Filter className="w-4 h-4 text-ongc-blue" />
-              <span>REGISTRY FILTERS</span>
-              {activeFiltersCount > 0 && (
-                <span className="bg-amber-100 text-amber-800 border-amber-200 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-1">
-                  {activeFiltersCount} active
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleResetFilters();
-                  }}
-                  className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
-                >
-                  Clear All
-                </button>
-              )}
-              <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
-                {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}
-              </span>
-            </div>
+      {/* Collapsible Filters Card */}
+      <Card className="bg-slate-50/50 border-slate-200 shadow-xs" noPadding>
+        <div
+          className={`flex items-center justify-between cursor-pointer p-6 ${
+            showFilters ? 'border-b border-slate-200' : ''
+          }`}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <Filter className="w-4 h-4 text-ongc-blue" />
+            <span>REGISTRY FILTERS</span>
+            {(!showFilters) && (
+              <Badge label="Collapsed" />
+            )}
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleResetFilters();
+              }}
+              className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
+            >
+              Clear All
+            </button>
+            <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
+              {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}
+            </span>
+          </div>
+        </div>
 
-          {showFilters && (
-            <div className="p-6 space-y-6">
-              {/* Categorical Filters */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-700 border-b border-slate-100 pb-1.5">
-                  Categorical Filters
-                </h3>
-                {metadata?.filter_options &&
-                  Object.entries(metadata.filter_options)
-                    .filter(([key]) =>
-                      ['formation', 'location', 'name', 'ubhi', 'material_type'].includes(key)
-                    )
-                    .map(([key, opts]) => {
-                      const searchVal = filterSearches[key] || '';
-                      const filteredOpts = (opts || []).filter((o) =>
-                        o.toLowerCase().includes(searchVal.toLowerCase())
-                      );
-                      const checkedOpts = filters[key] || [];
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+            {/* Categorical Filters */}
+            {metadata?.filter_options &&
+              Object.entries(metadata.filter_options)
+                .filter(([key]) =>
+                  ['formation', 'location', 'name', 'ubhi', 'material_type'].includes(key)
+                )
+                .map(([key, opts]) => {
+                  const searchVal = filterSearches[key] || '';
+                  const filteredOpts = (opts || []).filter((o) =>
+                    o.toLowerCase().includes(searchVal.toLowerCase())
+                  );
+                  const checkedOpts = filters[key] || [];
 
-                      return (
-                        <div key={key} className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                            {formatParamLabel(key === 'name' ? 'Well Name' : key)}
-                          </label>
+                  return (
+                    <div key={key} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs flex flex-col">
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                        {formatParamLabel(key === 'name' ? 'Well Name' : key)}
+                      </label>
 
-                          {/* Inner Search Box */}
-                          {opts.length > 5 && (
-                            <div className="relative">
-                              <input
-                                type="text"
-                                placeholder={`Search ${formatParamLabel(
-                                  key === 'name' ? 'Well Name' : key
-                                )}...`}
-                                value={searchVal}
-                                onChange={(e) =>
-                                  setFilterSearches((prev) => ({
-                                    ...prev,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                                className="w-full text-[11px] rounded-lg border-slate-200 bg-slate-50/50 py-1 pl-6 pr-2 focus:ring-1 focus:ring-ongc-blue"
-                              />
-                              <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
-                            </div>
-                          )}
-
-                          <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pl-1 border border-slate-100 rounded-lg p-1.5 bg-slate-50/20">
-                            {filteredOpts.length === 0 ? (
-                              <div className="text-[10px] text-slate-400 italic">No matches</div>
-                            ) : (
-                              filteredOpts.map((opt) => {
-                                const isChecked = checkedOpts.includes(opt);
-                                return (
-                                  <div
-                                    key={opt}
-                                    onClick={() => toggleMultiSelect(key, opt)}
-                                    className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800"
-                                  >
-                                    {isChecked ? (
-                                      <CheckSquare className="w-4 h-4 text-ongc-blue shrink-0" />
-                                    ) : (
-                                      <Square className="w-4 h-4 text-slate-300 shrink-0" />
-                                    )}
-                                    <span className="truncate">{opt}</span>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
+                      {/* Inner Search Box */}
+                      {opts.length > 5 && (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder={`Search...`}
+                            value={searchVal}
+                            onChange={(e) =>
+                              setFilterSearches((prev) => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }))
+                            }
+                            className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 pl-6 pr-2 focus:ring-1 focus:ring-ongc-blue"
+                          />
+                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
                         </div>
-                      );
-                    })}
-              </div>
+                      )}
 
-              {/* Numeric Bound Filters */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-700 border-b border-slate-100 pb-1.5">
-                  Numeric Bounds
-                </h3>
-                <div className="max-h-80 overflow-y-auto space-y-4 pr-1">
-                  {metadata?.filter_ranges &&
-                    Object.entries(metadata.filter_ranges).map(([key, range]) => {
-                      const current = filters[key] || {};
-                      return (
-                        <div key={key} className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 block truncate font-mono">
-                            {formatParamLabel(key)}
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              placeholder={`Min: ${range.min.toFixed(2)}`}
-                              value={current.min === undefined ? '' : current.min}
-                              onChange={(e) =>
-                                handleRangeChange(key, 'min', e.target.value)
-                              }
-                              className="w-1/2 text-xs rounded-lg border-slate-200 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                            />
-                            <span className="text-slate-400 text-xs">-</span>
-                            <input
-                              type="number"
-                              placeholder={`Max: ${range.max.toFixed(2)}`}
-                              value={current.max === undefined ? '' : current.max}
-                              onChange={(e) =>
-                                handleRangeChange(key, 'max', e.target.value)
-                              }
-                              className="w-1/2 text-xs rounded-lg border-slate-200 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
+                      <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pl-1 flex-1">
+                        {filteredOpts.length === 0 ? (
+                          <div className="text-[10px] text-slate-400 italic">No matches</div>
+                        ) : (
+                          filteredOpts.map((opt) => {
+                            const isChecked = checkedOpts.includes(opt);
+                            return (
+                              <div
+                                key={opt}
+                                onClick={() => toggleMultiSelect(key, opt)}
+                                className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800"
+                              >
+                                {isChecked ? (
+                                  <CheckSquare className="w-4 h-4 text-ongc-blue shrink-0" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                                )}
+                                <span className="truncate">{opt}</span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
 
-        {/* Right Side: Tab Contents */}
-        <div className={`lg:col-span-${showFilters ? '3' : '4'} space-y-6`}>
+            {/* Numeric Bound Filters */}
+            {metadata?.filter_ranges &&
+              Object.entries(metadata.filter_ranges).map(([key, range]) => {
+                const current = filters[key] || {};
+                return (
+                  <div key={key} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                      {formatParamLabel(key)}
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="w-1/2">
+                        <label className="text-[9px] text-slate-400 block">Min Bound</label>
+                        <input
+                          type="number"
+                          placeholder={range.min.toFixed(2)}
+                          value={current.min === undefined ? '' : current.min}
+                          onChange={(e) =>
+                            handleRangeChange(key, 'min', e.target.value)
+                          }
+                          className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                        />
+                      </div>
+                      <div className="w-1/2">
+                        <label className="text-[9px] text-slate-400 block">Max Bound</label>
+                        <input
+                          type="number"
+                          placeholder={range.max.toFixed(2)}
+                          value={current.max === undefined ? '' : current.max}
+                          onChange={(e) =>
+                            handleRangeChange(key, 'max', e.target.value)
+                          }
+                          className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </Card>
+
+      {/* Tab Contents */}
+      <div className="space-y-6">
           {/* TAB 1: Chart Builder */}
           {activeTab === 'builder' && (
             <Card
@@ -648,6 +632,5 @@ export const InorganicDashboard: React.FC = () => {
           />
         </div>
       </div>
-    </div>
   );
 };

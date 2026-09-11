@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, cast
+from typing import Any, Optional, List, Dict, cast
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
@@ -44,12 +44,14 @@ def download_report(
     
     # Redirect tables to views if matching view exists
     TABLE_TO_VIEW_MAP = {
-        "DL_BIOMARKER_STERANE": "DL_BIOMARKER_STERANE_VW",
-        "DL_BIOMARKER_HOPANE": "DL_BIOMARKER_HOPANE_VW",
+        "DL_GAS_CHROMATOGRAPHY_": "DL_GAS_CHROMATOGRAPHY_VW",
+        "DL_GCH_OIL_COMPOSITION_": "DL_GCH_OIL_COMPOSITION_VW",
+        "DL_BIOMARKER_STERANE_": "DL_BIOMARKER_STERANE_VW",
+        "DL_BIOMARKER_HOPANE_": "DL_BIOMARKER_HOPANE_VW",
         "DL_TRICYCLIC_TERPANE_": "DL_BIOM_TRICYCLIC_TERP_VW",
         "DL_BIOMARKER_AROMATIC_": "DL_BIOMARKER_AROMATIC_VW",
         "DL_BIOMARKER_PR_PH_": "DL_BIOMARKER_PR_PH_VW",
-        "DL_ISOTOPE_GAS": "DL_ISOTOPE_GAS_VW",
+        "DL_ISOTOPE_GAS_": "DL_ISOTOPE_GAS_VW",
         "DL_ISOTOPE_OIL": "DL_ISOTOPE_OIL_VW",
         "DL_ISOTOPE_CSIA": "DL_ISOTOPE_CSIA_VW"
     }
@@ -158,12 +160,14 @@ def download_report(
         )
     else:  # pdf
         selected_graphs = []
+        ds_graphs = cast(List[Dict[str, Any]], dataset.graph_config) or []
         if include_graphs:
             graph_types = [g.strip() for g in include_graphs.split(",") if g.strip()]
-            ds_graphs = dataset.graph_config or []
             for g in ds_graphs:
                 if g.get("type") in graph_types:
                     selected_graphs.append(g)
+        else:
+            selected_graphs = ds_graphs
 
         data_bytes = ReportGenerator.generate_pdf(cast(str, dataset.display_name), variables, records, selected_graphs)
         return Response(

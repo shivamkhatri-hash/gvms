@@ -47,7 +47,7 @@ An enterprise-grade Graphical Visualization Management System (GVMS) engineered 
                     |                           |
                     v                           v
 +-------------------+-------+       +-----------+-------------------+
-| React 19 Frontend (:3001) |       | FastAPI Python Backend (:8001)|
+| React 18 Frontend (:3001) |       | FastAPI Python Backend (:8001)|
 | TailwindCSS + Plotly.js   |       | SQLAlchemy 2.0 + Pandas       |
 +---------------------------+       +-----------+-------------------+
                                                 |
@@ -72,7 +72,7 @@ An enterprise-grade Graphical Visualization Management System (GVMS) engineered 
 - Security: **JWT (jose) + bcrypt (passlib)**
 
 ### **Frontend**
-- Framework: **React 19 with Vite & TypeScript**
+- Framework: **React 18 with Vite & TypeScript**
 - Styling: **TailwindCSS v3 (ONGC Enterprise Theme)**
 - State Management: **TanStack React Query v5**
 - Scientific Charts: **Plotly.js (`react-plotly.js`)**
@@ -137,21 +137,6 @@ Open your web browser and navigate to:
 - App Portal: `http://SERVER_IP`
 - Secure Metabase Embed: Integrated seamlessly inside dashboard views.
 - API Documentation: `http://SERVER_IP/docs`
-
----
-
-## 🧪 Testing & Verification
-
-### 1. Automated Browser-Based Verification
-To run the automated page and dashboard verification suite:
-1. Ensure the application is running via Docker Compose (`http://localhost`).
-2. Run the Playwright test suite inside the `frontend` directory:
-   ```bash
-   cd frontend
-   npx playwright test
-   ```
-Playwright is configured to run using the local Google Chrome installation (avoiding Playwright CDN download outages). Full-page screenshots of all 11 major dashboard screens are captured and saved in `frontend/tests/screenshots/`.
-For more details, see [docs/browser-verification.md](file:///E:/GVMS%28Graphical%20Visualization%20Management%20System%29/docs/browser-verification.md).
 
 ---
 

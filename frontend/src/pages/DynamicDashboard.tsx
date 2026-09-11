@@ -98,7 +98,12 @@ const rolesMap = {
   depth: ['depth', 'md', 'tvd', 'top depth', 'sample top', 'depth (m)', 'sample_top', 'depth_top', 'interval_top'],
   well: ['well', 'well name', 'borehole', 'borehole name', 'well_name', 'borehole_name', 'name'],
   lithology: ['lithology', 'lith', 'lithology type', 'sample type', 'lithology_type'],
-  formation: ['formation', 'fm', 'stratigraphy']
+  formation: ['formation', 'fm', 'stratigraphy'],
+  pr_by_ph: ['pr/ph', 'pr_by_ph', 'pristane/phytane', 'pr_ph_ratio'],
+  pr_by_nc17: ['pr/nc17', 'pr_by_nc17', 'pristane/nc17'],
+  ph_by_nc18: ['ph/nc18', 'ph_by_nc18', 'phytane/nc18'],
+  sulfur: ['sulfur', 'sulphur', 's', 'sulfur_content', 'sulfur (%)', 's (wt%)', 's (wt.%)', 's_wt_perc'],
+  api_gravity: ['api', 'api gravity', 'api_gravity']
 };
 
 export const DynamicDashboard: React.FC = () => {
@@ -359,10 +364,17 @@ export const DynamicDashboard: React.FC = () => {
     const piCol = findColByRole('pi');
     const tmaxCol = findColByRole('tmax');
     const vroCol = findColByRole('vro');
+    const osiCol = findColByRole('osi');
     const depthCol = activeDataset?.primary_depth_column || findColByRole('depth');
     const wellCol = activeDataset?.primary_well_column || findColByRole('well');
     const lithCol = findColByRole('lithology');
     const formationCol = findColByRole('formation');
+
+    const prC17Col = findColByRole('pr_by_nc17');
+    const phC18Col = findColByRole('ph_by_nc18');
+    const prPhCol = findColByRole('pr_by_ph');
+    const apiCol = findColByRole('api_gravity');
+    const sulfurCol = findColByRole('sulfur');
 
     const getPoints = (xCol: string, yCol: string | null, colorCol: string | null = null) => {
       return data
@@ -427,6 +439,20 @@ export const DynamicDashboard: React.FC = () => {
         .filter(p => p !== null);
     };
 
+    const addScatterChart = (id: string, title: string, xCol: string, yCol: string, xLabelName?: string, yLabelName?: string) => {
+      const pts = getPoints(xCol, yCol, wellCol);
+      if (pts.length > 0) {
+        charts.push({
+          id: id,
+          title: title,
+          chartType: 'scatter',
+          xLabel: xLabelName || variables.find((v) => v.sql_column_name === xCol)?.display_name || xCol,
+          yLabel: yLabelName || variables.find((v) => v.sql_column_name === yCol)?.display_name || yCol,
+          data: pts
+        });
+      }
+    };
+
     // 1. S2 vs TOC
     if (tocCol && s2Col) {
       const s2TocPts = getS2TocPoints(tocCol, s2Col);
@@ -435,8 +461,8 @@ export const DynamicDashboard: React.FC = () => {
           id: 's2_vs_toc',
           title: 'S2 vs TOC Geochemistry Interpretation',
           chartType: 's2_vs_toc',
-          xLabel: 'Average TOC (%)',
-          yLabel: 'Average S2 (mg HC/g rock)',
+          xLabel: 'TOC (% wt.)',
+          yLabel: 'Hydrocarbon Generation Potential: S2 (mgHC/gm rock)',
           data: s2TocPts
         });
       }
@@ -457,12 +483,79 @@ export const DynamicDashboard: React.FC = () => {
       }
     }
 
-    // Generic Depth Profiles
+    // 3. HI vs TOC Crossplot
+    if (tocCol && hiCol) {
+      addScatterChart('toc_vs_hi', 'HI vs TOC Crossplot', tocCol, hiCol);
+    }
+
+    // 4. OI vs TOC Crossplot
+    if (tocCol && oiCol) {
+      addScatterChart('toc_vs_oi', 'OI vs TOC Crossplot', tocCol, oiCol);
+    }
+
+    // 5. S2 vs Tmax Crossplot
+    if (s2Col && tmaxCol) {
+      addScatterChart('s2_vs_tmax', 'S2 vs Tmax Crossplot', tmaxCol, s2Col);
+    }
+
+    // 6. S1 vs S2 Hydrocarbon Potential
+    if (s1Col && s2Col) {
+      addScatterChart('s1_vs_s2', 'S1 vs S2 Hydrocarbon Potential', s2Col, s1Col);
+    }
+
+    // 7. PI vs TOC Maturity Plot
+    if (piCol && tocCol) {
+      addScatterChart('pi_vs_toc', 'PI vs TOC Maturity Plot', tocCol, piCol);
+    }
+
+    // 8. OSI vs TOC Reservoir Quality
+    if (osiCol && tocCol) {
+      addScatterChart('osi_vs_toc', 'OSI vs TOC Reservoir Quality', tocCol, osiCol);
+    }
+
+    // 9. HI vs OI Pseudo-Van Krevelen
+    if (hiCol && oiCol) {
+      addScatterChart('hi_vs_oi', 'HI vs OI Pseudo-Van Krevelen', oiCol, hiCol);
+    }
+
+    // 10. TOC vs VRo Thermal Maturity
+    if (tocCol && vroCol) {
+      addScatterChart('toc_vs_vro', 'TOC vs VRo Thermal Maturity', vroCol, tocCol);
+    }
+
+    // 11. Pristane/n-C17 vs Phytane/n-C18
+    if (prC17Col && phC18Col) {
+      const pts = getPoints(phC18Col, prC17Col, wellCol);
+      if (pts.length > 0) {
+        charts.push({
+          id: 'pr_nc17_vs_ph_nc18',
+          title: 'Pristane/n-C17 vs Phytane/n-C18 Plot',
+          chartType: 'pr_nc17_vs_ph_nc18',
+          xLabel: 'Phytane/n-C18',
+          yLabel: 'Pristane/n-C17',
+          data: pts
+        });
+      }
+    }
+
+    // 12. Pr/Ph vs Pr/n-C17 Plot
+    if (prPhCol && prC17Col) {
+      addScatterChart('pr_by_ph_vs_pr_by_nc17', 'Pr/Ph vs Pr/n-C17 Plot', prC17Col, prPhCol);
+    }
+
+    // 13. API Gravity vs Sulfur Plot
+    if (apiCol && sulfurCol) {
+      addScatterChart('api_vs_sulfur', 'API Gravity vs Sulfur Plot', sulfurCol, apiCol);
+    }
+
+    // Depth Profiles
     if (depthCol) {
       const depthProfileCandidates = [
         { col: tocCol, id: 'toc_depth', label: 'TOC Depth Profile' },
         { col: s2Col, id: 's2_depth', label: 'S2 Depth Profile' },
         { col: hiCol, id: 'hi_depth', label: 'HI Depth Profile' },
+        { col: oiCol, id: 'oi_depth', label: 'OI Depth Profile' },
+        { col: piCol, id: 'pi_depth', label: 'PI Depth Profile' },
         { col: vroCol, id: 'vro_depth', label: 'VRo Depth Profile' }
       ];
       depthProfileCandidates.forEach((cand) => {
@@ -482,7 +575,7 @@ export const DynamicDashboard: React.FC = () => {
       });
     }
 
-    // Generic fallback: build scatter profiles if no standard configuration matches
+    // Generic fallback
     if (charts.length === 0) {
       const numericVars = variables.filter((v) => v.is_numeric && v.sql_column_name.toLowerCase() !== 'id');
       if (numericVars.length >= 2) {
@@ -556,40 +649,12 @@ export const DynamicDashboard: React.FC = () => {
       };
     }
 
-    if (!activeGraph || availablePlots.length === 0) return null;
-
-    // Find custom preset or type-matched plot
-    const matched = availablePlots.find(
-      (p) =>
-        p.id === activeGraph.type ||
-        p.chartType === activeGraph.type ||
-        p.title.toLowerCase().includes(activeGraph.title.toLowerCase())
-    );
-
-    if (matched) return matched;
-
-    // Otherwise construct custom coordinate plot using graph parameters
-    const xCol = activeGraph.x_axis;
-    const yCol = activeGraph.y_axis;
-    const pts = (scientificRecords || [])
-      .map((pt) => ({
-        x: pt[xCol],
-        y: yCol ? pt[yCol] : undefined,
-        color_by: activeGraph.color_by ? String(pt[activeGraph.color_by]) : undefined
-      }))
-      .filter((p) => p.x !== undefined && p.x !== null);
-
-    return {
-      chartType: activeGraph.type || 'scatter',
-      xLabel: activeDataset?.variables?.find((v) => v.sql_column_name === xCol)?.display_name || xCol,
-      yLabel: yCol ? (activeDataset?.variables?.find((v) => v.sql_column_name === yCol)?.display_name || yCol) : undefined,
-      title: activeGraph.title,
-      data: pts
-    };
+    if (availablePlots.length === 0) return null;
+    return availablePlots[activeGraphIndex] || availablePlots[0];
   }, [
     isCrossDataset,
     useCustomBuilder,
-    activeGraph,
+    activeGraphIndex,
     availablePlots,
     crossPlotData,
     xVarCustom,
@@ -619,6 +684,7 @@ export const DynamicDashboard: React.FC = () => {
       }
       setColorByCustom('');
       setZVarCustom('');
+      setActiveGraphIndex(0);
     }
   }, [selectedDatasetId]);
 
@@ -786,11 +852,11 @@ export const DynamicDashboard: React.FC = () => {
               Approved Default Graphs
             </label>
             <div className="flex flex-wrap gap-2">
-              {activeDataset?.graph_config?.map((graph: any, idx: number) => {
+              {availablePlots.map((plot: any, idx: number) => {
                 const isActive = !isCrossDataset && !useCustomBuilder && activeGraphIndex === idx;
                 return (
                   <button
-                    key={idx}
+                    key={plot.id || idx}
                     onClick={() => {
                       setIsCrossDataset(false);
                       setUseCustomBuilder(false);
@@ -802,11 +868,11 @@ export const DynamicDashboard: React.FC = () => {
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
                     }`}
                   >
-                    {graph.title}
+                    {plot.title}
                   </button>
                 );
               })}
-              {(!activeDataset?.graph_config || activeDataset.graph_config.length === 0) && (
+              {availablePlots.length === 0 && (
                 <span className="text-xs text-slate-400 italic py-2">No pre-configured scientific plots for this dataset</span>
               )}
             </div>
@@ -830,7 +896,7 @@ export const DynamicDashboard: React.FC = () => {
               onClick={(e) => { e.stopPropagation(); handleResetFilters(); }}
               className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
             >
-              Clear Filters
+              Clear All
             </button>
             <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
               {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}

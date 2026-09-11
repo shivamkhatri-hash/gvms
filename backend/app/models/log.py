@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func, Sequence
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -7,7 +7,7 @@ from app.core.database import Base
 class UploadLog(Base):
     __tablename__ = "upload_logs"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('upload_log_seq'), primary_key=True, index=True, autoincrement=True)
     filename = Column(String(255), nullable=False)
     file_size = Column(Integer, nullable=False)
     total_rows = Column(Integer, nullable=False)
@@ -24,7 +24,7 @@ class UploadLog(Base):
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('audit_log_seq'), primary_key=True, index=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     action = Column(String(100), nullable=False)
     resource = Column(String(100), nullable=False)

@@ -23,7 +23,6 @@
     "tailwind-merge": "^2.2.2"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
     "@types/node": "^20.11.30",
     "@types/plotly.js": "^2.12.30",
     "@types/react": "^18.2.66",

@@ -512,6 +512,20 @@ Dynamic report exports query records based on active filters and generate files 
 
 ## 29. Change History
 
+### 2026-08-21
+- **Change:** Repaired blank scientific plot rendering on the Source Rock Cuttings dashboard. Tied coordinate data series mappings to dynamic colors toggles (wells/formations). Implemented automatic fallback to a single uniform trace (rendered as clean blue circles without a legend) when unique groups exceed 12 (such as 506 wells), while maintaining color-coded grouping when groups are small (such as 8 formations).
+- **Files:** [Dashboard.tsx](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/src/pages/Dashboard.tsx), [DynamicPlotlyChart.tsx](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/src/components/charts/DynamicPlotlyChart.tsx).
+- **Reason:** Resolve layout crashes and restore clean, standard geochemical plotting alignment matching the core dashboard aesthetics.
+- **Validation:** Frontend production compilation and Docker container builds exited successfully (code 0).
+- **Status:** Completed.
+
+### 2026-08-20
+- **Change:** Removed Pyright type checking configurations, Playwright automated testing dependencies (spec tests, browsers config, and browser docs), and redundant/historical backend python imports and database scripts.
+- **Files:** `pyrightconfig.json` (deleted), `frontend/playwright.config.ts` (deleted), `frontend/tests/` (deleted), `docs/browser-verification.md` (deleted), `backend/reset_and_import_isotopes.py` (deleted), `backend/reset_and_import_biomarkers.py` (deleted), `database/add_hopane_vw.sql` (deleted), [package.json](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/package.json), [tsconfig.node.json](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/tsconfig.node.json), [README.md](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/README.md).
+- **Reason:** Clean up development environment, prune devDependencies, and delete redundant/obsolete files to simplify the codebase for production deployment and presentation.
+- **Validation:** Clean build on frontend and backend, verified workspace state using git status and npm install to prune package-lock.json.
+- **Status:** Completed.
+
 ### 2026-08-16
 - **Change:** Implemented a unified, scrollable horizontal HTML/CSS legend system for all Plotly charts. Removed native vertical/wrapped legends. Handled dashboard viewport bounds and conditional dataset trace exceptions. Completely deleted the "Completeness Report" (omission log) tab and views from all 8 laboratory dashboards to simplify layouts. Updated all project port mappings in configs and documentation (Nginx `8080`, React `3001`, FastAPI `8001`, Postgres `5433`, Metabase `3002`).
 - **Files:** [CustomPlot.tsx](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/src/components/charts/CustomPlot.tsx), [DynamicPlotlyChart.tsx](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/frontend/src/components/charts/DynamicPlotlyChart.tsx), [README.md](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/README.md), [progress.md](file:///e:/GVMS(Graphical%20Visualization%20Management%20System)/progress.md), and dashboard files (`TricyclicDashboard.tsx`, `SteraneDashboard.tsx`, `PrPhDashboard.tsx`, `HopaneDashboard.tsx`, `AromaticDashboard.tsx`, `OilCompositionDashboard.tsx`, `GasChromatographyDashboard.tsx`, `GasIsotopeDashboard.tsx`).

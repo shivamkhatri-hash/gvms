@@ -22,6 +22,8 @@ export const Layout: React.FC = () => {
       case '/aromatic-dashboard':
       case '/pr-ph-dashboard':
         return 'Dashboard';
+      case '/cross-plot':
+        return 'Cross Plot';
 
       case '/metabase':
         return 'Metabase BI';

@@ -2,6 +2,11 @@
 import io
 import csv
 from typing import List, Dict, Any, cast
+import matplotlib  # type: ignore
+matplotlib.use('Agg')  # Set non-interactive backend at module level before importing pyplot
+import matplotlib.pyplot as plt  # type: ignore
+import numpy as np
+
 from openpyxl import Workbook  # type: ignore
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # type: ignore
 from openpyxl.utils import get_column_letter  # type: ignore
@@ -252,14 +257,32 @@ class ReportGenerator:
                     title = g.get("title", "Dataset Visualization")
                     g_type = g.get("type", "scatter")
                     
+                    # Resolve professional labels from variables registry
+                    x_label = x_col.upper()
+                    for v in variables:
+                        if v.sql_column_name.lower() == x_col.lower():
+                            unit = f" ({v.display_unit})" if v.display_unit else ""
+                            x_label = f"{v.display_name}{unit}"
+                            break
+                    
+                    y_label = y_col.upper() if y_col else None
+                    if y_col:
+                        for v in variables:
+                            if v.sql_column_name.lower() == y_col.lower():
+                                unit = f" ({v.display_unit})" if v.display_unit else ""
+                                y_label = f"{v.display_name}{unit}"
+                                break
+
+                    print(f"DEBUG_LABEL: x_col={x_col} -> x_label={x_label} | y_col={y_col} -> y_label={y_label}", flush=True)
+
                     img_bytes = ReportGenerator._create_matplotlib_plot(
                         chart_type=g_type,
                         x_col=x_col,
                         y_col=y_col,
                         title=title,
                         records=records,
-                        x_label=x_col.upper(),
-                        y_label=y_col.upper() if y_col else None
+                        x_label=x_label,
+                        y_label=y_label
                     )
                     
                     if img_bytes:
@@ -288,71 +311,199 @@ class ReportGenerator:
     ) -> bytes:
         """Dynamically render custom matplotlib charts matching the look & feel of frontend Plotly charts."""
         try:
-            import matplotlib  # type: ignore
-            matplotlib.use('Agg')  # Use non-interactive backend
-            import matplotlib.pyplot as plt  # type: ignore
-            import numpy as np
+            # Case-insensitive / underscore-insensitive helper to lookup keys in records
+            def get_val_case_insensitive(record: dict, key: str):
+                if not key:
+                    return None
+                if key in record:
+                    return record[key]
+                key_clean = key.lower().replace("_", "")
+                for k, v in record.items():
+                    if k.lower().replace("_", "") == key_clean:
+                        return v
+                return None
 
             # Extract coordinates
             x_vals = []
             y_vals = []
             
-            for r in records:
-                x_val = r.get(x_col)
-                y_val = r.get(y_col) if y_col else None
-                
-                if x_val is not None:
-                    try:
-                        x_vals.append(float(x_val))
-                    except (ValueError, TypeError):
-                        continue
-                else:
-                    continue
+            if chart_type != 'csia_profile':
+                for r in records:
+                    x_val = get_val_case_insensitive(r, x_col)
+                    y_val = get_val_case_insensitive(r, y_col) if y_col else None
                     
-                if y_col:
-                    if y_val is not None:
+                    if x_val is not None:
                         try:
-                            y_vals.append(float(y_val))
+                            x_vals.append(float(x_val))
                         except (ValueError, TypeError):
-                            x_vals.pop()  # Maintain alignment
                             continue
                     else:
-                        x_vals.pop()
                         continue
+                        
+                    if y_col:
+                        if y_val is not None:
+                            try:
+                                y_vals.append(float(y_val))
+                            except (ValueError, TypeError):
+                                x_vals.pop()  # Maintain alignment
+                                continue
+                        else:
+                            x_vals.pop()
+                            continue
 
-            if not x_vals:
-                return b""
+                if not x_vals:
+                    return b""
 
             # Setup figure
-            fig, ax = plt.subplots(figsize=(6, 4))
+            fig, ax = plt.subplots(figsize=(6, 5))
             
+            # Apply modern premium styling matching dashboard theme
+            ax.set_facecolor('#ffffff')
+            fig.patch.set_facecolor('#ffffff')
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_color('#cbd5e1')
+            ax.spines['bottom'].set_color('#cbd5e1')
+            ax.spines['left'].set_linewidth(0.8)
+            ax.spines['bottom'].set_linewidth(0.8)
+            ax.tick_params(colors='#475569', labelsize=8)
+            ax.grid(True, linestyle='--', alpha=0.3, color='#cbd5e1', zorder=1)
+
+            # Common helper to plot grouped multi-well data points dynamically
+            def plot_grouped_scatter(x_c, y_c):
+                groups = {}
+                for r in records:
+                    x_v = get_val_case_insensitive(r, x_c)
+                    y_v = get_val_case_insensitive(r, y_c) if y_c else None
+                    if x_v is not None and y_v is not None:
+                        try:
+                            xf = float(x_v)
+                            yf = float(y_v)
+                            well = get_val_case_insensitive(r, "well_name") or get_val_case_insensitive(r, "name") or get_val_case_insensitive(r, "well") or "Unknown"
+                            if well not in groups:
+                                groups[well] = {"x": [], "y": []}
+                            groups[well]["x"].append(xf)
+                            groups[well]["y"].append(yf)
+                        except (ValueError, TypeError):
+                            continue
+
+                well_colors = ['#0284c7', '#ec4899', '#dc2626', '#16a34a', '#ea580c', '#d946ef', '#10b981', '#8b5cf6']
+                well_markers = ['d', 's', 'o', '^', 'P', '*', 'X', '_']
+                
+                for idx, (well_name, pts) in enumerate(groups.items()):
+                    name_upper = well_name.upper()
+                    if name_upper == 'A' or 'WELL A' in name_upper:
+                        symbol = 'd'; color = '#0284c7'
+                    elif name_upper == 'B' or 'WELL B' in name_upper:
+                        symbol = 's'; color = '#ec4899'
+                    elif name_upper == 'C' or 'WELL C' in name_upper:
+                        symbol = 'o'; color = '#dc2626'
+                    elif name_upper == 'D' or 'WELL D' in name_upper:
+                        symbol = '^'; color = '#16a34a'
+                    elif name_upper == 'E' or 'WELL E' in name_upper:
+                        symbol = 'P'; color = '#ea580c'
+                    elif name_upper == 'F' or 'WELL F' in name_upper:
+                        symbol = '*'; color = '#d946ef'
+                    elif name_upper == 'G' or 'WELL G' in name_upper:
+                        symbol = 'X'; color = '#10b981'
+                    elif name_upper == 'H' or 'WELL H' in name_upper:
+                        symbol = '_'; color = '#8b5cf6'
+                    else:
+                        color = well_colors[idx % len(well_colors)]
+                        symbol = well_markers[idx % len(well_markers)]
+
+                    ax.scatter(
+                        pts["x"], pts["y"],
+                        label=well_name,
+                        color=color,
+                        marker=symbol,
+                        alpha=0.9,
+                        edgecolors='black' if symbol not in ['_', '*'] else color,
+                        linewidths=0.5,
+                        s=35,
+                        zorder=5
+                    )
+                return len(groups) > 0
+
             # Apply styling matching dashboard charts
             if chart_type == 's2_vs_toc':
-                ax.scatter(x_vals, y_vals, color='#003366', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                # Group by TOC Classification dynamically to match frontend PlotlyTocS2Scatter colors
+                grades = ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent']
+                toc_colors = {
+                    'Poor': '#EF4444',
+                    'Fair': '#F59E0B',
+                    'Good': '#10B981',
+                    'Very Good': '#06B6D4',
+                    'Excellent': '#8B5CF6'
+                }
+                
+                groups = {g: {"x": [], "y": []} for g in grades}
+                groups["Other"] = {"x": [], "y": []}
+                
+                for r in records:
+                    x_v = get_val_case_insensitive(r, x_col)
+                    y_v = get_val_case_insensitive(r, y_col) if y_col else None
+                    if x_v is not None and y_v is not None:
+                        try:
+                            xf = float(x_v)
+                            yf = float(y_v)
+                            cls = get_val_case_insensitive(r, "toc_classification") or "Other"
+                            if cls not in groups:
+                                cls = "Other"
+                            groups[cls]["x"].append(xf)
+                            groups[cls]["y"].append(yf)
+                        except (ValueError, TypeError):
+                            continue
+
+                for grade in grades + ["Other"]:
+                    pts = groups[grade]
+                    if not pts["x"]:
+                        continue
+                    color = toc_colors.get(grade, '#64748B')
+                    ax.scatter(
+                        pts["x"], pts["y"],
+                        label=f"TOC Grade: {grade}" if grade != "Other" else "Other",
+                        color=color,
+                        alpha=0.85,
+                        edgecolors='white',
+                        linewidths=0.5,
+                        s=35,
+                        zorder=5
+                    )
+                
                 ax.set_xscale('log')
                 ax.set_yscale('log')
                 ax.set_xlim(0.1, 100)
                 ax.set_ylim(0.1, 100)
                 
                 # Classifications vertical reference lines (TOC guidelines)
-                ax.axvline(0.5, color='#06B6D4', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axvline(1.0, color='#F97316', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axvline(2.0, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axvline(4.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axvline(0.5, color='#06B6D4', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axvline(1.0, color='#F97316', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axvline(2.0, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axvline(4.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
                 
                 # Classifications horizontal reference lines (S2 guidelines)
-                ax.axhline(2.5, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axhline(5.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axhline(10.0, color='#16A34A', linestyle='--', linewidth=0.8, alpha=0.7)
-                ax.axhline(20.0, color='#7C3AED', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axhline(2.5, color='#2563EB', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axhline(5.0, color='#EF4444', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axhline(10.0, color='#16A34A', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axhline(20.0, color='#7C3AED', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
                 
+                ax.legend(loc='lower left', fontsize=7, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
             elif chart_type == 'hi_vs_tmax':
-                ax.scatter(x_vals, y_vals, color='#D97706', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                plot_grouped_scatter(x_col, y_col)
                 ax.set_xlim(400, 480)
                 ax.set_ylim(0, 700)
-                ax.axvline(435, color='#000000', linestyle='-', linewidth=0.8, alpha=0.5)
-                ax.axvline(470, color='#000000', linestyle='-', linewidth=0.8, alpha=0.5)
                 
+                # Thermal Maturity stage vertical division boundaries
+                ax.axvline(435, color='#64748B', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                ax.axvline(470, color='#64748B', linestyle='--', linewidth=0.8, alpha=0.7, zorder=2)
+                
+                # Zone Annotation Labels
+                ax.text(417.5, 665, "Immature", fontsize=6, color='#64748B', fontweight='bold', ha='center', va='center')
+                ax.text(452.5, 665, "Mature", fontsize=6, color='#64748B', fontweight='bold', ha='center', va='center')
+                ax.text(475.0, 665, "Post-Mature", fontsize=6, color='#64748B', fontweight='bold', ha='center', va='center')
+
                 # Maturity curve guidelines (Type II, III, etc.)
                 tmax_vals = np.linspace(400, 472, 100)
                 y_type_iii = 85 * (1 - 0.7 * ((tmax_vals - 400)/72)**2)
@@ -360,19 +511,225 @@ class ReportGenerator:
                 
                 ax.plot(tmax_vals, y_type_iii, color='#F97316', linestyle='-', linewidth=1, label='Type III', zorder=2)
                 ax.plot(tmax_vals, y_type_ii, color='#1E3A8A', linestyle='-', linewidth=1, label='Type II', zorder=2)
-                ax.legend(loc='upper right', fontsize=7)
+                ax.legend(loc='upper right', fontsize=7, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
                 
             elif chart_type == 'depth_profile':
-                ax.scatter(x_vals, y_vals, color='#2563EB', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                plot_grouped_scatter(x_col, y_col)
                 ax.invert_yaxis()  # Invert depth log
+                ax.legend(loc='upper right', fontsize=7, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type == 'api_vs_depth':
+                # Group by well name dynamically
+                groups = {}
+                for r in records:
+                    x_v = get_val_case_insensitive(r, x_col)
+                    y_v = get_val_case_insensitive(r, y_col) if y_col else None
+                    if x_v is not None and y_v is not None:
+                        try:
+                            xf = float(x_v)
+                            yf = float(y_v)
+                            well = get_val_case_insensitive(r, "well_name") or get_val_case_insensitive(r, "name") or get_val_case_insensitive(r, "well") or "Unknown"
+                            if well not in groups:
+                                groups[well] = {"x": [], "y": []}
+                            groups[well]["x"].append(xf)
+                            groups[well]["y"].append(yf)
+                        except (ValueError, TypeError):
+                            continue
                 
+                well_colors = ['#2563EB', '#DC2626', '#16A34A', '#7C3AED', '#F59E0B', '#EC4899', '#10B981', '#6366F1']
+                for idx, (well_name, pts) in enumerate(groups.items()):
+                    color = well_colors[idx % len(well_colors)]
+                    ax.scatter(pts["x"], pts["y"], label=well_name, color=color, alpha=0.8, edgecolors='black', linewidths=0.5, s=35, zorder=5)
+                
+                ax.set_xlim(10, 70)
+                ax.set_ylim(4000, 1000) # Inverted
+                
+                # Dashed vertical classification boundaries
+                ax.axvline(30, color='#000000', linestyle='--', linewidth=0.8, alpha=0.5)
+                ax.axvline(40, color='#000000', linestyle='--', linewidth=0.8, alpha=0.5)
+                ax.axvline(60, color='#000000', linestyle='--', linewidth=0.8, alpha=0.5)
+                
+                # Text labels matching frontend:
+                ax.text(20, 1200, "Heavy oils", fontsize=7, fontweight='bold', color='#000000', ha='center', va='center')
+                ax.text(35, 1200, "Medium oils", fontsize=7, fontweight='bold', color='#000000', ha='center', va='center')
+                ax.text(50, 1200, "Light oils", fontsize=7, fontweight='bold', color='#000000', ha='center', va='center')
+                ax.text(65, 1200, "Condensates /\nvery light oils", fontsize=7, fontweight='bold', color='#000000', ha='center', va='center')
+                
+                x_label = "API (°API)"
+                y_label = "Depth (m)"
+                if groups:
+                    ax.legend(loc='lower left', fontsize=7)
+
+            elif chart_type == 'pr_nc17_vs_ph_nc18':
+                groups = {}
+                for r in records:
+                    x_v = get_val_case_insensitive(r, x_col)
+                    y_v = get_val_case_insensitive(r, y_col) if y_col else None
+                    if x_v is not None and y_v is not None:
+                        try:
+                            xf = float(x_v)
+                            yf = float(y_v)
+                            well = get_val_case_insensitive(r, "name") or get_val_case_insensitive(r, "well_name") or get_val_case_insensitive(r, "well") or "Unknown"
+                            if well not in groups:
+                                groups[well] = {"x": [], "y": []}
+                            groups[well]["x"].append(xf)
+                            groups[well]["y"].append(yf)
+                        except (ValueError, TypeError):
+                            continue
+
+                # Map markers & colors to match Well A to H style
+                for well_name, pts in groups.items():
+                    name_upper = well_name.upper()
+                    symbol = 'o'
+                    color = '#3b82f6'
+                    
+                    if name_upper == 'A' or 'WELL A' in name_upper or 'WELL_A' in name_upper:
+                        symbol = 'd'
+                        color = '#0284c7'
+                    elif name_upper == 'B' or 'WELL B' in name_upper or 'WELL_B' in name_upper:
+                        symbol = 's'
+                        color = '#ec4899'
+                    elif name_upper == 'C' or 'WELL C' in name_upper or 'WELL_C' in name_upper:
+                        symbol = 'o'
+                        color = '#dc2626'
+                    elif name_upper == 'D' or 'WELL D' in name_upper or 'WELL_D' in name_upper:
+                        symbol = '^'
+                        color = '#16a34a'
+                    elif name_upper == 'E' or 'WELL E' in name_upper or 'WELL_E' in name_upper:
+                        symbol = 'P'
+                        color = '#ea580c'
+                    elif name_upper == 'F' or 'WELL F' in name_upper or 'WELL_F' in name_upper:
+                        symbol = '*'
+                        color = '#d946ef'
+                    elif name_upper == 'G' or 'WELL G' in name_upper or 'WELL_G' in name_upper:
+                        symbol = 'X'
+                        color = '#10b981'
+                    elif name_upper == 'H' or 'WELL H' in name_upper or 'WELL_H' in name_upper:
+                        symbol = '_'
+                        color = '#8b5cf6'
+                    else:
+                        hash_val = sum(ord(char) for char in name_upper)
+                        colors_list = ['#0891b2', '#0d9488', '#4f46e5', '#7c3aed', '#db2777', '#ca8a04']
+                        symbols_list = ['o', '^', 'v', 'd', 's', 'x']
+                        color = colors_list[hash_val % len(colors_list)]
+                        symbol = symbols_list[hash_val % len(symbols_list)]
+                    
+                    ax.scatter(
+                        pts["x"], pts["y"],
+                        label=well_name,
+                        color=color,
+                        marker=symbol,
+                        alpha=0.9,
+                        edgecolors='black' if symbol not in ['_', '*'] else color,
+                        linewidths=0.5,
+                        s=35,
+                        zorder=5
+                    )
+                
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                ax.set_xlim(0.01, 10.0)
+                ax.set_ylim(0.01, 10.0)
+                
+                # Constant Pr/Ph ratios:
+                x_line = np.logspace(-2, 1, 100)
+                ax.plot(x_line, 8.0 * x_line, color='#000000', linewidth=0.6, zorder=2)
+                ax.plot(x_line, 4.0 * x_line, color='#000000', linewidth=0.6, zorder=2)
+                ax.plot(x_line, 2.0 * x_line, color='#000000', linewidth=0.6, zorder=2)
+                ax.plot(x_line, 1.0 * x_line, color='#000000', linewidth=0.6, zorder=2)
+                ax.plot(x_line, 0.5 * x_line, color='#000000', linewidth=0.6, zorder=2)
+
+                # Annotation labels parallel to diagonals
+                ax.text(0.80, 6.4, "Terrestrial, Type III", fontsize=5.5, color='#000000', rotation=35, ha='center', va='center')
+                ax.text(1.20, 4.8, "Terrestrial, CoalyType III", fontsize=5.5, color='#000000', rotation=35, ha='center', va='center')
+                ax.text(1.50, 3.0, "Type II-Type III mixture", fontsize=5.5, color='#000000', rotation=35, ha='center', va='center')
+                ax.text(2.20, 2.2, "Type II, reducing algal, marine", fontsize=5.5, color='#000000', rotation=35, ha='center', va='center')
+
+                # Biodegradation text and arrow
+                ax.text(0.12, 1.2, "Biodegradation", fontsize=6, fontweight='bold', color='#000000', rotation=35, ha='center', va='center')
+                ax.annotate("", xy=(0.20, 1.8), xytext=(0.08, 0.70), arrowprops=dict(arrowstyle="->", color="black", lw=0.8))
+
+                # Maturation text and arrow
+                ax.text(0.15, 0.05, "Maturation", fontsize=6, fontweight='bold', color='#000000', rotation=35, ha='center', va='center')
+                ax.annotate("", xy=(0.09, 0.03), xytext=(0.22, 0.070), arrowprops=dict(arrowstyle="->", color="black", lw=0.8))
+
+                # Oxidizing & Reducing double-headed arrow and text
+                ax.annotate("", xy=(0.52, 0.85), xytext=(0.75, 0.45), arrowprops=dict(arrowstyle="<->", color="black", lw=0.8))
+                ax.text(0.55, 0.92, "Oxidizing", fontsize=6, fontweight='bold', color='#000000', rotation=-55, ha='center', va='center')
+                ax.text(0.70, 0.38, "Reducing", fontsize=6, fontweight='bold', color='#000000', rotation=-55, ha='center', va='center')
+
+                x_label = r'Phytane / $\mathrm{nC}_{18}$'
+                y_label = r'Pristane / $\mathrm{nC}_{17}$'
+                if groups:
+                    ax.legend(loc='lower left', fontsize=7)
+                
+            elif chart_type == 'sofer_plot' or chart_type == 'galimov_plot':
+                plot_grouped_scatter(x_col, y_col)
+                # Plot the Sofer boundary line (CV = 0.47)
+                # CV = -2.53 * sat + 2.22 * aro - 11.65
+                # For CV = 0.47: aro = (2.53 * sat + 12.12) / 2.22
+                sat_line = np.linspace(-35, -20, 100)
+                aro_line = (2.53 * sat_line + 12.12) / 2.22
+                ax.plot(sat_line, aro_line, color='#dc2626', linestyle='--', linewidth=1, label='Sofer Line (CV=0.47)', zorder=2)
+                ax.text(-25, -23.5, "Terrigenous (waxy)", fontsize=7, color='#dc2626', fontweight='bold', ha='center')
+                ax.text(-32, -31, "Marine (non-waxy)", fontsize=7, color='#0284c7', fontweight='bold', ha='center')
+                ax.set_xlim(-35, -20)
+                ax.set_ylim(-35, -20)
+                ax.legend(loc='lower right', fontsize=7)
+                x_label = "δ13C Saturates (‰)"
+                y_label = "δ13C Aromatics (‰)"
+
+            elif chart_type == 'csia_profile':
+                well_colors = ['#0284c7', '#ec4899', '#dc2626', '#16a34a', '#ea580c', '#d946ef', '#10b981', '#8b5cf6']
+                well_markers = ['d', 's', 'o', '^', 'P', '*', 'X', '_']
+                
+                carbons = list(range(15, 35))
+                for idx, r in enumerate(records[:15]):  # Limit to top 15 to avoid clutter
+                    well_name = get_val_case_insensitive(r, "well_name") or get_val_case_insensitive(r, "name") or "Unknown"
+                    depth = get_val_case_insensitive(r, "interval_top") or get_val_case_insensitive(r, "depth") or "N/A"
+                    
+                    x_lbls = []
+                    y_vals = []
+                    for c_num in carbons:
+                        v = get_val_case_insensitive(r, f"nc{c_num}")
+                        if v is not None:
+                            try:
+                                y_vals.append(float(v))
+                                x_lbls.append(f"nC{c_num}")
+                            except (ValueError, TypeError):
+                                pass
+                                
+                    if y_vals:
+                        color = well_colors[idx % len(well_colors)]
+                        marker = well_markers[idx % len(well_markers)]
+                        ax.plot(x_lbls, y_vals, label=f"{well_name} ({depth}m)", color=color, marker=marker, markersize=4, linewidth=1, alpha=0.9)
+                
+                x_label = "n-Alkanes"
+                y_label = "δ13C (‰)"
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
             else: # Standard scatter
                 ax.scatter(x_vals, y_vals, color='#10B981', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+
+            # Automatically invert Y-axis if label/column suggests depth profiles
+            if y_col and any(d in y_col.lower() for d in ['depth', 'top', 'bottom', 'interval_top']):
+                if not ax.yaxis_inverted():
+                    ax.invert_yaxis()
+
+            # Log-scale Bernard Diagram isotope ratios automatically
+            if x_col and x_col.lower() == 'c1_by_c2_plus_c3':
+                ax.set_xscale('log')
+                ax.set_xlim(1.0, 10000.0)
 
             ax.set_title(title, fontsize=10, fontweight='bold', color='#0F172A', pad=8)
             ax.set_xlabel(x_label, fontsize=8, color='#475569')
             ax.set_ylabel(y_label or 'Value', fontsize=8, color='#475569')
-            ax.grid(True, which='both', linestyle=':', color='#E2E8F0', linewidth=0.5)
+            
+            # Hide grid for pr_nc17_vs_ph_nc18 to match reference
+            if chart_type == 'pr_nc17_vs_ph_nc18':
+                ax.grid(False)
+            else:
+                ax.grid(True, which='major', linestyle='--', color='#CBD5E1', linewidth=0.5, alpha=0.4)
             
             for spine in ['top', 'right']:
                 ax.spines[spine].set_visible(False)

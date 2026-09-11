@@ -11,37 +11,58 @@ from app.models.user import User
 from app.schemas.token import TokenPayload
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False
 )
 
 
 def get_current_user(
-    db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
+    db: Session = Depends(get_db), token: Optional[str] = Depends(reusable_oauth2)
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        user_id: str = payload.get("sub")
-        token_type: str = payload.get("type")
-        if user_id is None or token_type != "access":
-            raise credentials_exception
-        token_data = TokenPayload(sub=user_id, role=payload.get("role"))
-        user_uuid = UUID(user_id)
-    except (JWTError, ValueError):
-        raise credentials_exception
 
-    user = crud_user.get_by_id(db, user_id=user_uuid)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return user
+    if token:
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            user_id: str = payload.get("sub")
+            token_type: str = payload.get("type")
+            if user_id and token_type == "access":
+                user_uuid = UUID(user_id)
+                user = crud_user.get_by_id(db, user_id=user_uuid)
+                if user and user.is_active:
+                    return user
+        except (JWTError, ValueError):
+            if not settings.AUTH_DISABLED:
+                raise credentials_exception
+
+    # Development / testing authentication bypass when AUTH_DISABLED=True
+    if settings.AUTH_DISABLED:
+        admin_user = crud_user.get_by_email(db, email=settings.FIRST_SUPERUSER)
+        if not admin_user:
+            admin_user = db.query(User).filter(User.role == "admin").first()
+        if not admin_user:
+            admin_user = db.query(User).first()
+        if admin_user:
+            return admin_user
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AUTH_DISABLED is enabled, but no admin user exists in the database to authenticate as."
+        )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    raise credentials_exception
 
 
 def get_current_active_admin(

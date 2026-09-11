@@ -19,7 +19,8 @@ def health_check(db: Session = Depends(get_db)) -> Any:
     """
     db_status = "online"
     try:
-        db.execute(text("SELECT 1"))
+        sql = "SELECT 1 FROM DUAL" if settings.DATABASE_PROVIDER.lower() == "oracle" else "SELECT 1"
+        db.execute(text(sql))
     except Exception as e:
         db_status = f"offline: {str(e)}"
 

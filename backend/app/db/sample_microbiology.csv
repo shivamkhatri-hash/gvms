@@ -1,6 +1,0 @@
-ubhi,sample_no,latitude,longitude,methane_c1,ethane_c2,propane_c3,iso_butane_ic4,n_butane_nc4,iso_pentane_ic5,n_pentane_nc5,wet_gas_c2plus,total_gas_c1plus,c1_by_c2,c1_by_c2_plus_c3,c2_by_c3,c3_by_c1,c1_by_c1plus,propane_oxi_count,propane_oxi_count1,propanotrophs_count,butane_oxi_count,butane_oxi_count1,butanotrophs_count,remarks,insert_user,borehole_id
-TMP_UBHI_B-157N-10,1000,18.9521,72.8253,3.16,0.888,0.253,0.05,0.038,0.099,0.089,1.691,2.136,19.561,25.452,7.351,0.018,0.506,225,351,4518,448,769,4367,Successfully tested,admin@ongc.co.in,1
-TMP_UBHI_BH-93,1001,19.0021,72.8753,5.956,0.505,0.009,0.077,0.087,0.082,0.062,0.903,6.195,31.243,38.487,2.594,0.009,0.869,711,509,9509,829,129,3454,Successfully tested,admin@ongc.co.in,2
-TMP_UBHI_BH-94,1002,19.0521,72.9253,1.821,0.609,0.109,0.066,0.046,0.022,0.093,1.754,0.775,14.734,43.069,3.394,0.026,0.876,217,431,3397,144,317,7443,Successfully tested,admin@ongc.co.in,3
-TMP_UBHI_BH-96,1003,19.1021,72.9753,7.347,0.961,0.137,0.056,0.09,0.044,0.079,1.19,2.722,82.482,41.348,3.26,0.023,0.562,872,782,7378,345,696,2304,Successfully tested,admin@ongc.co.in,4
-TMP_UBHI_B-157N-10,1004,19.1521,73.0253,9.156,0.415,0.25,0.015,0.077,0.02,0.057,1.55,8.49,81.312,39.585,6.202,0.048,0.787,355,457,2231,846,962,8376,Successfully tested,admin@ongc.co.in,1

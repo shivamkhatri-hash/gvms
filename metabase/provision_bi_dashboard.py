@@ -3,6 +3,21 @@ import time
 import os
 import requests
 
+def load_env():
+    for path in [".env", "../.env", "../../.env", "backend/.env"]:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, val = line.split("=", 1)
+                        val = val.strip().strip('"').strip("'")
+                        # Only set if not already present in environment
+                        if key.strip() not in os.environ:
+                            os.environ[key.strip()] = val
+
+load_env()
+
 METABASE_URL = os.getenv("METABASE_URL", "http://metabase:3000")
 ADMIN_EMAIL = os.getenv("FIRST_SUPERUSER", "admin@ongc.co.in")
 ADMIN_PASSWORD = os.getenv("FIRST_SUPERUSER_PASSWORD", "Admin@123456")
@@ -25,14 +40,34 @@ def authenticate():
         time.sleep(3)
     return None
 
-def get_postgres_db_id(headers):
+import re
+
+def update_env_file(dash_id):
+    for path in [".env", "../.env", "../../.env"]:
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    content = f.read()
+                new_content = re.sub(r'METABASE_DASHBOARD_ID=\d+', f'METABASE_DASHBOARD_ID={dash_id}', content)
+                if 'METABASE_DASHBOARD_ID=' not in new_content:
+                    new_content += f'\nMETABASE_DASHBOARD_ID={dash_id}\n'
+                with open(path, "w") as f:
+                    f.write(new_content)
+                print(f"[+] Updated {path} with METABASE_DASHBOARD_ID={dash_id}")
+                return True
+            except Exception as e:
+                print(f"[-] Failed to update {path}: {str(e)}")
+    return False
+
+def get_target_db_id(headers, db_provider):
+    target_engine = "oracle" if db_provider == "oracle" else "postgres"
     resp = requests.get(f"{METABASE_URL}/api/database", headers=headers)
     if resp.status_code == 200:
         data = resp.json()
         dbs = data.get("data", data) if isinstance(data, dict) else data
         for db in dbs:
-            if isinstance(db, dict) and db.get("engine") == "postgres":
-                print(f"[+] Found PostgreSQL database with ID: {db.get('id')}")
+            if isinstance(db, dict) and db.get("engine") == target_engine:
+                print(f"[+] Found {target_engine.upper()} database with ID: {db.get('id')}")
                 return db.get("id")
     return None
 
@@ -41,11 +76,43 @@ def provision():
     if not headers:
         print("[-] Could not authenticate with Metabase. Exiting.")
         return
-        
-    db_id = get_postgres_db_id(headers)
+
+    db_provider = os.getenv("DATABASE_PROVIDER", "postgres").lower()
+    db_id = get_target_db_id(headers, db_provider)
     if not db_id:
-        print("[-] PostgreSQL database is not registered in Metabase. Exiting.")
-        return
+        print(f"[*] {db_provider.upper()} database not found in Metabase. Registering database...")
+        if db_provider == "oracle":
+            db_payload = {
+                "engine": "oracle",
+                "name": "ONGC Geochem Lab DB",
+                "details": {
+                    "host": os.getenv("ORACLE_HOST", "oracle_host"),
+                    "port": int(os.getenv("ORACLE_PORT", "1521")),
+                    "db": os.getenv("ORACLE_SERVICE_NAME", "ORCL"),
+                    "user": os.getenv("ORACLE_USER", "ongc_user"),
+                    "password": os.getenv("ORACLE_PASSWORD", "ONGC_Oracle_Pass2026!")
+                }
+            }
+        else:
+            db_payload = {
+                "engine": "postgres",
+                "name": "ONGC Geochem Lab DB",
+                "details": {
+                    "host": os.getenv("POSTGRES_SERVER", "postgres"),
+                    "port": int(os.getenv("POSTGRES_PORT", "5432")),
+                    "db": os.getenv("POSTGRES_DB", "ongc_lab"),
+                    "user": os.getenv("POSTGRES_USER", "ongc_admin"),
+                    "password": os.getenv("POSTGRES_PASSWORD", "ONGC_Lab_Secure_Pass2026!"),
+                    "ssl": False
+                }
+            }
+        resp = requests.post(f"{METABASE_URL}/api/database", headers=headers, json=db_payload)
+        if resp.status_code in [200, 201]:
+            db_id = resp.json().get("id")
+            print(f"[+] {db_provider.upper()} database registered successfully with ID: {db_id}")
+        else:
+            print(f"[-] Failed to register database: {resp.text}")
+            return
 
     # Delete existing dashboard with same name if any
     dash_id = None
@@ -79,6 +146,7 @@ def provision():
     )
     if embed_resp.status_code == 200:
         print("[+] Signed embedding enabled successfully on dashboard.")
+        update_env_file(dash_id)
     else:
         print(f"[-] Failed to enable embedding: {embed_resp.text}")
 
@@ -163,13 +231,13 @@ def provision():
         (
             "Sample Statistics",
             "Samples by Formation",
-            "SELECT formation, COUNT(*) as sample_count FROM (SELECT FORMATION FROM DL_GAS_CHROMATOGRAPHY UNION ALL SELECT FORMATION FROM DL_ISOTOPE_GAS) as combined WHERE formation IS NOT NULL AND formation <> '' GROUP BY formation ORDER BY sample_count DESC LIMIT 10;",
+            "SELECT formation, COUNT(*) as sample_count FROM (SELECT FORMATION FROM DL_GAS_CHROMATOGRAPHY_ UNION ALL SELECT FORMATION FROM DL_ISOTOPE_GAS_) as combined WHERE formation IS NOT NULL AND formation <> '' GROUP BY formation ORDER BY sample_count DESC LIMIT 10;",
             "bar", 8, 8, 6
         ),
         (
             "Sample Statistics",
             "Samples by Year",
-            "SELECT year::text, COUNT(*) as sample_count FROM (SELECT YEAR FROM DL_CL_CORE_SOURCEROCK WHERE YEAR IS NOT NULL UNION ALL SELECT YEAR::integer FROM DL_CL_CUTTING_SOURCEROCK WHERE YEAR IS NOT NULL AND YEAR ~ '^\\d+$') as combined GROUP BY year ORDER BY year;",
+            "SELECT year_val as year, COUNT(*) as sample_count FROM (SELECT YEAR::text as year_val FROM DL_CL_CORE_SOURCEROCK WHERE YEAR IS NOT NULL UNION ALL SELECT YEAR::text as year_val FROM DL_CL_CUTTING_SOURCEROCK WHERE YEAR IS NOT NULL AND YEAR <> '') as combined GROUP BY year_val ORDER BY year_val;",
             "bar", 16, 8, 6
         ),
         (

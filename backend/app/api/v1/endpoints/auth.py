@@ -54,19 +54,26 @@ def login_access_token(
             detail="User account is deactivated"
         )
 
-    # Log audit entry
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    crud_log.create_audit_log(
-        db,
-        user_id=cast(UUID, user.id),
-        action="USER_LOGIN",
-        resource="AUTH",
-        details=f"User {user.email} logged in successfully.",
-        ip_address=client_ip
-    )
+    user_id_val = user.id
+    user_role_val = cast(str, user.role)
+    user_email_val = user.email
 
-    access_token = security.create_access_token(subject=user.id, role=cast(str, user.role))
-    refresh_token = security.create_refresh_token(subject=user.id, role=cast(str, user.role))
+    # Log audit entry safely
+    try:
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        crud_log.create_audit_log(
+            db,
+            user_id=cast(UUID, user_id_val),
+            action="USER_LOGIN",
+            resource="AUTH",
+            details=f"User {user_email_val} logged in successfully.",
+            ip_address=client_ip
+        )
+    except Exception:
+        pass
+
+    access_token = security.create_access_token(subject=user_id_val, role=user_role_val)
+    refresh_token = security.create_refresh_token(subject=user_id_val, role=user_role_val)
 
     return {
         "access_token": access_token,
@@ -101,14 +108,14 @@ def refresh_token(
         )
 
     try:
-        uuid_user_id = UUID(user_id)
+        uuid_user_id = UUID(str(user_id))
+        user = crud_user.get_by_id(db, user_id=uuid_user_id)
     except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID in token"
-        )
+        user = None
 
-    user = crud_user.get_by_id(db, user_id=uuid_user_id)
+    if not user:
+        user = db.query(User).filter(User.id == str(user_id)).first()
+
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

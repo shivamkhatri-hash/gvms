@@ -8,15 +8,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 from app.core.config import settings
+from app.core.database import engine, SessionLocal
+from app.db.init_db import execute_dialect_sql, init_db
 
 def run_setup():
-    print(f"Connecting to database: {settings.DATABASE_URL}")
-    engine = create_engine(settings.DATABASE_URL)
-    
-    # 1. Create target SQL Tables
-    with engine.begin() as conn:
+    print(f"Connecting to database: {settings.sqlalchemy_database_url}")
+    db = SessionLocal()
+    try:
+        print("[*] Running core database schema initialization...")
+        init_db(db)
+        
+        # 1. Create target SQL Tables
         print("Creating table DL_CL_CUTTING_SOURCEROCK...")
-        conn.execute(text("""
+        execute_dialect_sql(db, """
         CREATE TABLE IF NOT EXISTS DL_CL_CUTTING_SOURCEROCK (
             ID SERIAL PRIMARY KEY,
             UBHI VARCHAR(100),
@@ -50,9 +54,9 @@ def run_setup():
             ANALYSED_AT VARCHAR(100),
             REMARKS TEXT,
             INSERT_USER VARCHAR(100),
-            INSERT_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            INSERT_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UPDATE_USER VARCHAR(100),
-            UPDATE_DATE TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UPDATE_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             SEP_TEMP DOUBLE PRECISION,
             SEP_PRESS DOUBLE PRECISION,
             FTHP DOUBLE PRECISION,
@@ -68,159 +72,133 @@ def run_setup():
             BOREHOLE_ID INTEGER,
             CUTTINGS_ID INTEGER,
             PROPOSED_CODE VARCHAR(255),
-            uploaded_by UUID
-        );
-        """))
+            uploaded_by VARCHAR(36)
+        )
+        """)
 
         # Clean old seeding of petroleum_geochem from dataset_registry to avoid conflicts
-        conn.execute(text("DELETE FROM dataset_registry WHERE name = 'petroleum_geochem';"))
+        try:
+            db.execute(text("DELETE FROM dataset_registry WHERE name = 'petroleum_geochem'"))
+            db.commit()
+        except Exception:
+            db.rollback()
 
-    # 2. Seed Dataset Registries and Variable Registries
-    datasets_meta = [
-        {
-            "name": "cutting_source_rock",
-            "display_name": "Cutting Source Rock",
-            "sql_table_name": "dl_cl_cutting_sourcerock",
-            "module": "geochemistry",
-            "description": "Source Rock Evaluation dataset from Cutting samples.",
-            "mapping_config": {
-                "ubhi": ["ubhi"],
-                "borehole_name": ["borehole name", "borehole_name"],
-                "cuttings_sample_id": ["cuttings sample id", "cuttings_sample_id", "cutting sample id", "cutting_sample_id", "cuttings_sample"],
-                "top_depth": ["top depth (m)", "top depth", "top_depth", "top_depth (m)", "top_depth", "segment depth"],
-                "bottom_depth": ["bottom depth (m)", "bottom depth", "bottom_depth", "bottom_depth (m)", "bottom_depth"],
-                "activity_type": ["activity type", "activity_type"],
-                "analysis_type": ["analysis type", "analysis_type"],
-                "lithology": ["lithology"],
-                "layer_name": ["layer name", "layer_name"],
-                "toc": ["toc"], "s1": ["s1 ", "s1"], "s2": ["s2"], "s3": ["s3 ", "s3"],
-                "tmax": ["tmax"], "hi": ["hi"], "oi": ["oi"], "vro": ["vro"],
-                "pi": ["pi"], "osi": ["osi"], "minc": ["minc"], "others": ["others"],
-                "special_obs": ["special observations", "special_obs"],
-                "year": ["year"], "author": ["author"], "analysed_at": ["analysed at", "analysed_at"], "remarks": ["remarks"]
-            },
-            "graph_config": [
-                {"type": "depth_profile", "x_axis": "toc", "y_axis": "top_depth", "title": "TOC Depth Profile", "color": "#003366"},
-                {"type": "depth_profile", "x_axis": "s2", "y_axis": "top_depth", "title": "S2 Depth Profile", "color": "#D97706"},
-                {"type": "scatter", "x_axis": "toc", "y_axis": "s2", "title": "TOC vs S2 Crossplot", "color_by": "lithology"}
-            ],
-            "required_columns": ["top_depth", "bottom_depth"],
-            "primary_depth_column": "top_depth",
-            "primary_well_column": "borehole_name",
-            "variables": [
-                ("ubhi", "UBHI", "ubhi", "string", None, False, True),
-                ("borehole_name", "Borehole Name", "borehole_name", "string", None, True, False),
-                ("cuttings_sample_id", "Cuttings Sample ID", "cuttings_sample_id", "string", None, True, False),
-                ("top_depth", "Top Depth", "top_depth", "numeric", "m", True, False),
-                ("bottom_depth", "Bottom Depth", "bottom_depth", "numeric", "m", True, False),
-                ("activity_type", "Activity Type", "activity_type", "string", None, True, False),
-                ("analysis_type", "Analysis Type", "analysis_type", "string", None, True, False),
-                ("lithology", "Lithology", "lithology", "string", None, True, False),
-                ("layer_name", "Layer Name", "layer_name", "string", None, True, False),
-                ("toc", "TOC", "toc", "numeric", "wt%", True, False),
-                ("s1", "S1", "s1", "numeric", "mg/g", True, False),
-                ("s2", "S2", "s2", "numeric", "mg/g", True, False),
-                ("s3", "S3", "s3", "numeric", "mg/g", True, False),
-                ("tmax", "Tmax", "tmax", "numeric", "°C", True, False),
-                ("hi", "HI", "hi", "numeric", "mg/g", True, False),
-                ("oi", "OI", "oi", "numeric", "mg/g", True, False),
-                ("vro", "VRo", "vro", "numeric", "%", True, False),
-                ("pi", "PI", "pi", "numeric", None, True, False),
-                ("osi", "OSI", "osi", "numeric", None, True, False),
-                ("minc", "MinC", "minc", "numeric", None, True, False),
-                ("others", "Others", "others", "string", None, True, False),
-                ("special_obs", "Special Observations", "special_obs", "string", None, True, False),
-                ("year", "Year", "year", "string", None, True, False),
-                ("author", "Author", "author", "string", None, True, False),
-                ("analysed_at", "Analysed At", "analysed_at", "string", None, True, False),
-                ("remarks", "Remarks", "remarks", "string", None, True, False)
-            ]
-        }
-    ]
+        # 2. Seed Dataset Registries and Variable Registries
+        datasets_meta = [
+            {
+                "name": "cutting_source_rock",
+                "display_name": "Cutting Source Rock",
+                "sql_table_name": "dl_cl_cutting_sourcerock",
+                "module": "geochemistry",
+                "description": "Source Rock Evaluation dataset from Cutting samples.",
+                "mapping_config": {
+                    "ubhi": ["ubhi"],
+                    "borehole_name": ["borehole name", "borehole_name"],
+                    "cuttings_sample_id": ["cuttings sample id", "cuttings_sample_id", "cutting sample id", "cutting_sample_id", "cuttings_sample"],
+                    "top_depth": ["top depth (m)", "top depth", "top_depth", "top_depth (m)", "top_depth", "segment depth"],
+                    "bottom_depth": ["bottom depth (m)", "bottom depth", "bottom_depth", "bottom_depth (m)", "bottom_depth"],
+                    "activity_type": ["activity type", "activity_type"],
+                    "analysis_type": ["analysis type", "analysis_type"],
+                    "lithology": ["lithology"],
+                    "layer_name": ["layer name", "layer_name"],
+                    "toc": ["toc"], "s1": ["s1 ", "s1"], "s2": ["s2"], "s3": ["s3 ", "s3"],
+                    "tmax": ["tmax"], "hi": ["hi"], "oi": ["oi"], "vro": ["vro"],
+                    "pi": ["pi"], "osi": ["osi"], "minc": ["minc"], "others": ["others"],
+                    "special_obs": ["special observations", "special_obs"],
+                    "year": ["year"], "author": ["author"], "analysed_at": ["analysed at", "analysed_at"], "remarks": ["remarks"]
+                },
+                "graph_config": [
+                    {"type": "depth_profile", "x_axis": "toc", "y_axis": "top_depth", "title": "TOC Depth Profile", "color": "#003366"},
+                    {"type": "depth_profile", "x_axis": "s2", "y_axis": "top_depth", "title": "S2 Depth Profile", "color": "#D97706"},
+                    {"type": "scatter", "x_axis": "toc", "y_axis": "s2", "title": "TOC vs S2 Crossplot", "color_by": "lithology"}
+                ],
+                "required_columns": ["top_depth", "bottom_depth"],
+                "primary_depth_column": "top_depth",
+                "primary_well_column": "borehole_name",
+                "variables": [
+                    ("ubhi", "UBHI", "ubhi", "string", None, False, True),
+                    ("borehole_name", "Borehole Name", "borehole_name", "string", None, True, False),
+                    ("cuttings_sample_id", "Cuttings Sample ID", "cuttings_sample_id", "string", None, True, False),
+                    ("top_depth", "Top Depth", "top_depth", "numeric", "m", True, False),
+                    ("bottom_depth", "Bottom Depth", "bottom_depth", "numeric", "m", True, False),
+                    ("activity_type", "Activity Type", "activity_type", "string", None, True, False),
+                    ("analysis_type", "Analysis Type", "analysis_type", "string", None, True, False),
+                    ("lithology", "Lithology", "lithology", "string", None, True, False),
+                    ("layer_name", "Layer Name", "layer_name", "string", None, True, False),
+                    ("toc", "TOC", "toc", "numeric", "wt%", True, False),
+                    ("s1", "S1", "s1", "numeric", "mg/g", True, False),
+                    ("s2", "S2", "s2", "numeric", "mg/g", True, False),
+                    ("s3", "S3", "s3", "numeric", "mg/g", True, False),
+                    ("tmax", "Tmax", "tmax", "numeric", "°C", True, False),
+                    ("hi", "HI", "hi", "numeric", "mg/g", True, False),
+                    ("oi", "OI", "oi", "numeric", "mg/g", True, False),
+                    ("vro", "VRo", "vro", "numeric", "%", True, False),
+                    ("pi", "PI", "pi", "numeric", None, True, False),
+                    ("osi", "OSI", "osi", "numeric", None, True, False),
+                    ("minc", "MinC", "minc", "numeric", None, True, False),
+                    ("others", "Others", "others", "string", None, True, False),
+                    ("special_obs", "Special Observations", "special_obs", "string", None, True, False),
+                    ("year", "Year", "year", "string", None, True, False),
+                    ("author", "Author", "author", "string", None, True, False),
+                    ("analysed_at", "Analysed At", "analysed_at", "string", None, True, False),
+                    ("remarks", "Remarks", "remarks", "string", None, True, False)
+                ]
+            }
+        ]
 
-    import json
-    with engine.begin() as conn:
+        from app.models.registry import DatasetRegistry, VariableRegistry
+
         for ds in datasets_meta:
             print(f"Registering dataset: {ds['display_name']} ({ds['name']})")
+            ds_obj = db.query(DatasetRegistry).filter(DatasetRegistry.name == ds["name"]).first()
+            if not ds_obj:
+                ds_obj = DatasetRegistry(name=ds["name"])
+                db.add(ds_obj)
             
-            # Check if dataset already exists
-            res = conn.execute(text("SELECT id FROM dataset_registry WHERE name = :name"), {"name": ds["name"]})
-            row = res.fetchone()
-            if row:
-                dataset_id = row[0]
-                # Update existing registry info
-                conn.execute(text("""
-                UPDATE dataset_registry 
-                SET display_name = :display_name, sql_table_name = :sql_table_name, module = :module,
-                    description = :description, mapping_config = :mapping_config, graph_config = :graph_config,
-                    required_columns = :required_columns, primary_depth_column = :primary_depth_column,
-                    primary_well_column = :primary_well_column, is_active = TRUE, updated_at = NOW()
-                WHERE id = :id
-                """), {
-                    "display_name": ds["display_name"],
-                    "sql_table_name": ds["sql_table_name"],
-                    "module": ds["module"],
-                    "description": ds["description"],
-                    "mapping_config": json.dumps(ds["mapping_config"]),
-                    "graph_config": json.dumps(ds["graph_config"]),
-                    "required_columns": ds["required_columns"],
-                    "primary_depth_column": ds["primary_depth_column"],
-                    "primary_well_column": ds["primary_well_column"],
-                    "id": dataset_id
-                })
-            else:
-                # Insert new dataset registry record
-                res = conn.execute(text("""
-                INSERT INTO dataset_registry (
-                    name, display_name, sql_table_name, module, description, mapping_config, graph_config,
-                    required_columns, primary_depth_column, primary_well_column, is_active
-                ) VALUES (
-                    :name, :display_name, :sql_table_name, :module, :description, :mapping_config, :graph_config,
-                    :required_columns, :primary_depth_column, :primary_well_column, TRUE
-                ) RETURNING id
-                """), {
-                    "name": ds["name"],
-                    "display_name": ds["display_name"],
-                    "sql_table_name": ds["sql_table_name"],
-                    "module": ds["module"],
-                    "description": ds["description"],
-                    "mapping_config": json.dumps(ds["mapping_config"]),
-                    "graph_config": json.dumps(ds["graph_config"]),
-                    "required_columns": ds["required_columns"],
-                    "primary_depth_column": ds["primary_depth_column"],
-                    "primary_well_column": ds["primary_well_column"]
-                })
-                dataset_id = res.scalar()
-            
+            ds_obj.display_name = ds["display_name"]
+            ds_obj.sql_table_name = ds["sql_table_name"]
+            ds_obj.module = ds["module"]
+            ds_obj.description = ds["description"]
+            ds_obj.mapping_config = ds["mapping_config"]
+            ds_obj.graph_config = ds["graph_config"]
+            ds_obj.required_columns = ds["required_columns"]
+            ds_obj.primary_depth_column = ds["primary_depth_column"]
+            ds_obj.primary_well_column = ds["primary_well_column"]
+            ds_obj.is_active = True
+            db.commit()
+            db.refresh(ds_obj)
+
+            dataset_id = ds_obj.id
+
             # Clean old variables for this dataset
-            conn.execute(text("DELETE FROM variable_registry WHERE dataset_id = :ds_id"), {"ds_id": dataset_id})
-            
+            db.query(VariableRegistry).filter(VariableRegistry.dataset_id == dataset_id).delete()
+            db.commit()
+
             # Insert variables
             for var in ds["variables"]:
                 name, display_name, sql_col, sql_type, unit, nullable, required = var
                 is_numeric = (sql_type == "numeric")
-                conn.execute(text("""
-                INSERT INTO variable_registry (
-                    dataset_id, name, display_name, sql_column_name, sql_data_type, display_unit,
-                    is_numeric, is_visible, is_filterable, chart_enabled, kpi_enabled, export_enabled,
-                    description, validation_rule, category
-                ) VALUES (
-                    :dataset_id, :name, :display_name, :sql_column_name, :sql_data_type, :display_unit,
-                    :is_numeric, TRUE, TRUE, TRUE, TRUE, TRUE,
-                    :description, NULL, NULL
+                var_obj = VariableRegistry(
+                    dataset_id=dataset_id,
+                    name=name,
+                    display_name=display_name,
+                    sql_column_name=sql_col,
+                    sql_data_type="NUMBER" if is_numeric else "VARCHAR(100)",
+                    display_unit=unit,
+                    is_numeric=is_numeric,
+                    is_visible=True,
+                    is_filterable=True,
+                    chart_enabled=True,
+                    kpi_enabled=True,
+                    export_enabled=True,
+                    description=f"{display_name} variable for {ds['display_name']}"
                 )
-                """), {
-                    "dataset_id": dataset_id,
-                    "name": name,
-                    "display_name": display_name,
-                    "sql_column_name": sql_col,
-                    "sql_data_type": "DOUBLE PRECISION" if is_numeric else "VARCHAR(100)",
-                    "display_unit": unit,
-                    "is_numeric": is_numeric,
-                    "description": f"{display_name} variable for {ds['display_name']}"
-                })
-                
-    print("Database setup and seeding completed successfully!")
+                db.add(var_obj)
+            db.commit()
+
+        print("Database setup and seeding completed successfully!")
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     run_setup()

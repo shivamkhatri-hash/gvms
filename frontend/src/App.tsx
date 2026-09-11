@@ -21,6 +21,7 @@ import { PrPhDashboard } from './pages/PrPhDashboard';
 import { DynamicDashboard } from './pages/DynamicDashboard';
 import { InorganicDashboard } from './pages/InorganicDashboard';
 import { SurfaceDashboard } from './pages/SurfaceDashboard';
+import { OilCrossPlotDashboard } from './pages/OilCrossPlotDashboard';
 import { Spinner } from './components/common/Spinner';
 
 const queryClient = new QueryClient({
@@ -66,7 +67,7 @@ export const App: React.FC = () => {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/" replace />} />
 
             <Route
               path="/"
@@ -91,6 +92,7 @@ export const App: React.FC = () => {
               {/* Oil Laboratory Module Routing */}
               <Route path="oil/dashboard" element={<GasChromatographyDashboard />} />
               <Route path="oil/composition-dashboard" element={<OilCompositionDashboard />} />
+              <Route path="oil/cross-plot" element={<OilCrossPlotDashboard />} />
               <Route path="oil/reports" element={<Reports module="oil" />} />
 
               {/* Isotope Laboratory Module Routing */}

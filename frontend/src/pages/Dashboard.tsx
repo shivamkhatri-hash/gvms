@@ -451,7 +451,7 @@ export const Dashboard: React.FC = () => {
     return num / den;
   };
 
-  const generateScientificCharts = (variables: VariableDef[], data: any[]) => {
+  const _dummy_generateScientificCharts = (variables: VariableDef[], data: any[]) => {
     if (!data || data.length === 0) return [];
 
     const charts: any[] = [];
@@ -548,7 +548,7 @@ export const Dashboard: React.FC = () => {
 
     return charts;
   };
-  const _disabled_generateScientificCharts = (variables: VariableDef[], data: any[]) => {
+  const generateScientificCharts = (variables: VariableDef[], data: any[]) => {
     if (!data || data.length === 0) return [];
 
     const charts: any[] = [];
@@ -611,8 +611,8 @@ export const Dashboard: React.FC = () => {
             y: yVal,
             well_name: wellName,
             sample_id: pt['sample_id'] || pt['sample'] || pt['core_sample_id'] || pt['cuttings_sample_id'] || pt['id'] || 'N/A',
-            color_by: wellName,
-            formation: pt['formation'] || pt['fm'] || 'N/A',
+            color_by: s2TocColorBy === 'formation' ? (pt['layer_name'] || pt['formation'] || pt['fm'] || 'N/A') : wellName,
+            formation: pt['layer_name'] || pt['formation'] || pt['fm'] || 'N/A',
             layer: pt['layer'] || 'N/A',
             top_depth: pt['top_depth'] !== undefined && pt['top_depth'] !== null ? pt['top_depth'] : (pt['depth_from'] || pt['depth'] || 'N/A'),
             bottom_depth: pt['bottom_depth'] !== undefined && pt['bottom_depth'] !== null ? pt['bottom_depth'] : (pt['depth_to'] || pt['depth_max'] || 'N/A'),
@@ -632,17 +632,23 @@ export const Dashboard: React.FC = () => {
           if (xVal === undefined || xVal === null) return null;
           if (yVal === undefined || yVal === null) return null;
 
+          const rawWell = pt['well_name'] || pt['well'] || pt['ubhi'] || 'N/A';
+          const wellName = rawWell.startsWith('TMP_WELL_') ? 'N/A' : rawWell;
+
           return {
             x: xVal,
             y: yVal,
-            well_name: pt['well_name'] || pt['well'] || 'N/A',
-            sample_id: pt['sample_id'] || pt['sample'] || pt['id'] || 'N/A',
-            formation: pt['formation'] || pt['fm'] || 'N/A',
+            well_name: wellName,
+            sample_id: pt['sample_id'] || pt['sample'] || pt['core_sample_id'] || pt['cuttings_sample_id'] || pt['id'] || 'N/A',
+            color_by: hiTmaxColorBy === 'formation' ? (pt['layer_name'] || pt['formation'] || pt['fm'] || 'N/A') : wellName,
+            formation: pt['layer_name'] || pt['formation'] || pt['fm'] || 'N/A',
             layer: pt['layer'] || 'N/A',
             top_depth: pt['top_depth'] !== undefined && pt['top_depth'] !== null ? pt['top_depth'] : (pt['depth_from'] || pt['depth'] || 'N/A'),
             bottom_depth: pt['bottom_depth'] !== undefined && pt['bottom_depth'] !== null ? pt['bottom_depth'] : (pt['depth_to'] || pt['depth_max'] || 'N/A'),
             toc: pt['toc'] || pt['average_toc'] || 'N/A',
-            s2: pt['s2'] || pt['average_s2'] || 'N/A'
+            s2: pt['s2'] || pt['average_s2'] || 'N/A',
+            sample_type: pt['sample_type'] || pt['type'] || pt['lithology'] || 'N/A',
+            dataset_name: pt['dataset_name'] || activeDataset?.display_name || 'N/A'
           };
         })
         .filter(p => p !== null) as any[];

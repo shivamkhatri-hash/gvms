@@ -29,7 +29,13 @@ services:
     container_name: gvms-backend
     restart: always
     environment:
+      - DATABASE_PROVIDER=${DATABASE_PROVIDER:-postgres}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-ongc_admin}:${POSTGRES_PASSWORD:-ONGC_Lab_Secure_Pass2026!}@postgres:5432/${POSTGRES_DB:-ongc_lab}
+      - ORACLE_USER=${ORACLE_USER}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
+      - ORACLE_HOST=${ORACLE_HOST}
+      - ORACLE_PORT=${ORACLE_PORT}
+      - ORACLE_SERVICE_NAME=${ORACLE_SERVICE_NAME}
       - SECRET_KEY=${SECRET_KEY:-ongc_lab_super_secret_jwt_key_32bytes_min_length_2026}
       - ALGORITHM=${ALGORITHM:-HS256}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-480}
@@ -81,7 +87,7 @@ services:
     container_name: gvms-frontend
     restart: always
     ports:
-      - "${REACT_PORT:-3000}:3000"
+      - "${REACT_PORT:-3005}:3005"
     depends_on:
       - backend
     networks:

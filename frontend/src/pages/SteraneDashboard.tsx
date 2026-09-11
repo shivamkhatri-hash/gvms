@@ -601,29 +601,32 @@ export const SteraneDashboard: React.FC = () => {
   const categoricalVars = steraneDataset.variables.filter((v) => !v.is_numeric && !['id', 'remarks', 'analysed_at', 'insert_user', 'insert_date', 'update_user', 'update_date', 'uploaded_by'].includes(v.sql_column_name));
 
   return (
-    <div className="flex animate-fade-in gap-6">
-      {/* Dynamic Filter Sidebar - Consistent with Source Rock Lab */}
-      {showFilters && (
-        <aside className="w-80 bg-white border border-slate-200/80 p-5 flex flex-col shrink-0 rounded-2xl h-fit shadow-xs space-y-5">
-          <div className="flex items-center justify-between border-b pb-3 mb-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-ongc-blue" />
-              <h2 className="font-bold text-slate-800">REGISTRY FILTERS</h2>
-              {activeFiltersCount > 0 && (
-                <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-1">
-                  {activeFiltersCount} active
-                </span>
-              )}
-            </div>
-            <span 
-              className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none cursor-pointer"
-              onClick={() => setShowFilters(false)}
+    <div className="space-y-6 animate-fade-in w-full">
+      {/* Collapsible Filters Card */}
+      <Card className="bg-slate-50/50 border-slate-200 shadow-xs" noPadding>
+        <div className={`flex items-center justify-between cursor-pointer p-6 ${showFilters ? 'border-b border-slate-200' : ''}`} onClick={() => setShowFilters(!showFilters)}>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <Filter className="w-4 h-4 text-ongc-blue" />
+            <span>REGISTRY FILTERS</span>
+            {(!showFilters) && (
+              <Badge label="Collapsed" />
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleResetFilters(); }}
+              className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
             >
-              Hide Filters ˄
+              Clear All
+            </button>
+            <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
+              {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}
             </span>
           </div>
+        </div>
 
-          <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
             {/* Generate dynamic categorical filters */}
             {categoricalVars.map((v) => {
               const col = v.sql_column_name;
@@ -632,43 +635,41 @@ export const SteraneDashboard: React.FC = () => {
               const filteredOptions = options.filter(opt => opt.toLowerCase().includes(searchVal.toLowerCase()));
 
               return (
-                <div key={col} className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                <div key={col} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs flex flex-col">
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
                     {v.display_name}
                   </label>
-                  
                   {options.length > 5 && (
                     <div className="relative mb-2">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-slate-400" />
                       <input
                         type="text"
-                        placeholder={`Search ${v.display_name.toLowerCase()}...`}
+                        placeholder={`Search...`}
                         value={searchVal}
                         onChange={(e) => setFilterSearches(prev => ({ ...prev, [col]: e.target.value }))}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs border rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-ongc-blue text-slate-800"
+                        className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 pl-6 pr-2 focus:ring-1 focus:ring-ongc-blue text-slate-800"
                       />
                     </div>
                   )}
-
-                  <div className="max-h-32 overflow-y-auto border border-slate-100 rounded-md p-2 space-y-1.5 bg-slate-50/50">
+                  <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pl-1 flex-1">
                     {filteredOptions.length === 0 ? (
-                      <span className="text-[10px] text-slate-400 italic p-1 block">No options</span>
+                      <span className="text-[10px] text-slate-400 italic block">No options</span>
                     ) : (
                       filteredOptions.map((opt) => {
                         const isChecked = filters[col]?.includes(opt) || false;
                         return (
-                          <button
+                          <div
                             key={opt}
                             onClick={() => toggleMultiSelect(col, opt)}
-                            className="flex items-center gap-2 w-full text-left text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors py-0.5"
+                            className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800"
                           >
                             {isChecked ? (
-                              <CheckSquare className="w-3.5 h-3.5 text-ongc-blue fill-ongc-blue/10 shrink-0" />
+                              <CheckSquare className="w-4 h-4 text-ongc-blue shrink-0" />
                             ) : (
-                              <Square className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                              <Square className="w-4 h-4 text-slate-300 shrink-0" />
                             )}
                             <span className="truncate">{opt}</span>
-                          </button>
+                          </div>
                         );
                       })
                     )}
@@ -689,82 +690,40 @@ export const SteraneDashboard: React.FC = () => {
               const currentMax = filters[col]?.max !== undefined ? filters[col].max : '';
 
               return (
-                <div key={col} className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                <div key={col} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs">
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
                     {v.display_name} {v.display_unit ? `(${v.display_unit})` : ''}
                   </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      placeholder={`Min: ${minLimit}`}
-                      value={currentMin}
-                      onChange={(e) => handleRangeChange(col, 'min', e.target.value)}
-                      className="w-1/2 p-1.5 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-ongc-blue text-center text-slate-800 bg-white"
-                    />
-                    <span className="text-slate-400 text-xs">to</span>
-                    <input
-                      type="number"
-                      placeholder={`Max: ${maxLimit}`}
-                      value={currentMax}
-                      onChange={(e) => handleRangeChange(col, 'max', e.target.value)}
-                      className="w-1/2 p-1.5 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-ongc-blue text-center text-slate-800 bg-white"
-                    />
+                  <div className="flex gap-2">
+                    <div className="w-1/2">
+                      <label className="text-[9px] text-slate-400 block">Min Bound</label>
+                      <input
+                        type="number"
+                        placeholder={minLimit.toString()}
+                        value={currentMin}
+                        onChange={(e) => handleRangeChange(col, 'min', e.target.value)}
+                        className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                      />
+                    </div>
+                    <div className="w-1/2">
+                      <label className="text-[9px] text-slate-400 block">Max Bound</label>
+                      <input
+                        type="number"
+                        placeholder={maxLimit.toString()}
+                        value={currentMax}
+                        onChange={(e) => handleRangeChange(col, 'max', e.target.value)}
+                        className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                      />
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          <div className="border-t pt-4 mt-6 flex gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetFilters}
-              disabled={activeFiltersCount === 0}
-              className="w-1/2 text-xs"
-            >
-              Reset Filters
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleRefreshAll()}
-              className="w-1/2 text-xs font-bold"
-            >
-              Apply
-            </Button>
-          </div>
-        </aside>
-      )}
-
-      {/* Main Dashboard Space */}
-      <div className="flex-1 space-y-6 min-w-0">
-        {!showFilters && (
-          <Card className="bg-slate-50/50 border-slate-200 shadow-xs cursor-pointer" noPadding>
-            <div className="flex items-center justify-between p-6" onClick={() => setShowFilters(true)}>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                <Filter className="w-4 h-4 text-ongc-blue" />
-                <span>REGISTRY FILTERS</span>
-                {activeFiltersCount > 0 && (
-                  <Badge label={`${activeFiltersCount} active`} customColor="bg-amber-100 text-amber-800 border-amber-200 font-bold" />
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {activeFiltersCount > 0 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleResetFilters(); }}
-                    className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
-                  >
-                    Clear All
-                  </button>
-                )}
-                <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
-                  Show Filters ˅
-                </span>
-              </div>
-            </div>
-          </Card>
         )}
+      </Card>
+
+      <div className="space-y-6 w-full">
 
         {/* Datasets Header Bar */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-2">

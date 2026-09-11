@@ -15,6 +15,23 @@ from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+_TABLE_COLUMNS_CACHE = {}
+
+def map_column_case_insensitively(col_name: str, db_columns: set) -> str:
+    if not col_name or not db_columns:
+        return col_name
+    if col_name in db_columns:
+        return col_name
+    col_lower = col_name.lower()
+    for db_col in db_columns:
+        if db_col.lower() == col_lower:
+            return db_col
+    col_clean = col_lower.replace("_", "")
+    for db_col in db_columns:
+        if db_col.lower().replace("_", "") == col_clean:
+            return db_col
+    return col_name
+
 
 
 def build_where_clause(
@@ -56,13 +73,14 @@ def build_where_clause(
 
         if col_def:
             col = col_def.sql_column_name
+            col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
             if is_min or is_max:
                 try:
                     val_float = float(val)
                     op = ">=" if is_min else "<="
                     param_name = f"{base_key}_min_val" if is_min else f"{base_key}_max_val"
                     if is_custom:
-                        where_clauses.append(f'"{col}" {op} :{param_name}')
+                        where_clauses.append(f'{col_ref} {op} :{param_name}')
                     else:
                         where_clauses.append(f"CAST(data->>'{col}' AS DOUBLE PRECISION) {op} :{param_name}")
                     params[param_name] = val_float
@@ -76,13 +94,13 @@ def build_where_clause(
                     if vals_list:
                         param_name = f"{key}_list"
                         if is_custom:
-                            where_clauses.append(f'"{col}" IN :{param_name}')
+                            where_clauses.append(f'{col_ref} IN :{param_name}')
                         else:
                             where_clauses.append(f"data->>'{col}' IN :{param_name}")
                         params[param_name] = tuple(vals_list)
                 else:
                     if is_custom:
-                        where_clauses.append(f'"{col}" = :{key}')
+                        where_clauses.append(f'{col_ref} = :{key}')
                     else:
                         where_clauses.append(f"data->>'{col}' = :{key}")
                     params[key] = val
@@ -95,8 +113,9 @@ def build_where_clause(
             if k.lower() in ["well_name", "borehole_name"]:
                 col = v.sql_column_name
                 break
+        col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
         if is_custom:
-            where_clauses.append(f'"{col}" = :well_name')
+            where_clauses.append(f'{col_ref} = :well_name')
         else:
             where_clauses.append(f"data->>'{col}' = :well_name")
         params["well_name"] = well_val
@@ -108,8 +127,9 @@ def build_where_clause(
             if not v.is_numeric and v.sql_column_name.lower() in ["sample_type", "lithology"]:
                 col = v.sql_column_name
                 break
+        col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
         if is_custom:
-            where_clauses.append(f'"{col}" = :sample_type')
+            where_clauses.append(f'{col_ref} = :sample_type')
         else:
             where_clauses.append(f"data->>'{col}' = :sample_type")
         params["sample_type"] = st_val
@@ -117,16 +137,17 @@ def build_where_clause(
     # Backward compatibility fallback for explicit depth_min and depth_max
     depth_col = dataset.primary_depth_column or "depth_from"
     for k, v in var_map.items():
-        if k.lower() in ["depth_from", "top_depth", "depth"]:
+        if k.lower() in ["depth_from", "top_depth", "sample_top", "depth"]:
             depth_col = v.sql_column_name
             break
             
+    depth_col_ref = f'"{depth_col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{depth_col}"'
     depth_min = query_params.get("depth_min")
     if depth_min is not None and str(depth_min).strip() != "" and "depth_min" not in params:
         try:
             float_min = float(depth_min)
             if is_custom:
-                where_clauses.append(f'"{depth_col}" >= :depth_min')
+                where_clauses.append(f'{depth_col_ref} >= :depth_min')
             else:
                 where_clauses.append(f"CAST(data->>'{depth_col}' AS DOUBLE PRECISION) >= :depth_min")
             params["depth_min"] = float_min
@@ -138,7 +159,7 @@ def build_where_clause(
         try:
             float_max = float(depth_max)
             if is_custom:
-                where_clauses.append(f'"{depth_col}" <= :depth_max')
+                where_clauses.append(f'{depth_col_ref} <= :depth_max')
             else:
                 where_clauses.append(f"CAST(data->>'{depth_col}' AS DOUBLE PRECISION) <= :depth_max")
             params["depth_max"] = float_max
@@ -179,9 +200,9 @@ def get_dashboard_summary(
  
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = cast(str, dataset.sql_table_name) if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
+    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE_":
         table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
+    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE_":
         table_name = "DL_BIOMARKER_HOPANE_VW"
     elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
         table_name = "DL_BIOMARKER_AROMATIC_VW"
@@ -222,6 +243,15 @@ def get_dashboard_summary(
     except Exception as inspect_err:
         logger.error(f"Failed to inspect SQL table columns: {str(inspect_err)}")
         db_columns = set()
+
+    if db_columns:
+        for v in variables:
+            v.sql_column_name = cast(Any, map_column_case_insensitively(cast(str, v.sql_column_name), db_columns))
+        var_map = {cast(str, v.sql_column_name): v for v in variables}
+        if dataset.primary_well_column:
+            dataset.primary_well_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_well_column), db_columns))
+        if dataset.primary_depth_column:
+            dataset.primary_depth_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_depth_column), db_columns))
  
     # Compile dynamic query params dictionary
     q_params = dict(request.query_params)
@@ -240,44 +270,47 @@ def get_dashboard_summary(
     )
  
     # 5. Build dynamic KPI select fields
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
     kpi_vars = [v for v in variables if v.kpi_enabled]
     select_fields = []
     
     for v in kpi_vars:
         col = v.sql_column_name
-        if db_columns and col not in db_columns:
+        col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
+        if db_columns and col not in db_columns and col.upper() not in db_columns and col.lower() not in {c.lower() for c in db_columns}:
             continue
         if v.is_numeric:
             if is_custom:
-                select_fields.append(f'AVG("{col}") AS "avg_{col}"')
-                select_fields.append(f'MIN("{col}") AS "min_{col}"')
-                select_fields.append(f'MAX("{col}") AS "max_{col}"')
-                select_fields.append(f'STDDEV("{col}") AS "stddev_{col}"')
-                select_fields.append(f'percentile_cont(0.5) within group (order by "{col}") AS "median_{col}"')
+                select_fields.append(f'AVG({col_ref}) AS "avg_{col.lower()}"')
+                select_fields.append(f'MIN({col_ref}) AS "min_{col.lower()}"')
+                select_fields.append(f'MAX({col_ref}) AS "max_{col.lower()}"')
+                select_fields.append(f'STDDEV({col_ref}) AS "stddev_{col.lower()}"')
+                select_fields.append(f'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {col_ref}) AS "median_{col.lower()}"')
             else:
-                select_fields.append(f"AVG(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"avg_{col}\"")
-                select_fields.append(f"MIN(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"min_{col}\"")
-                select_fields.append(f"MAX(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"max_{col}\"")
-                select_fields.append(f"STDDEV(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"stddev_{col}\"")
-                select_fields.append(f"percentile_cont(0.5) within group (order by CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"median_{col}\"")
+                select_fields.append(f"AVG(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"avg_{col.lower()}\"")
+                select_fields.append(f"MIN(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"min_{col.lower()}\"")
+                select_fields.append(f"MAX(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"max_{col.lower()}\"")
+                select_fields.append(f"STDDEV(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"stddev_{col.lower()}\"")
+                select_fields.append(f"PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"median_{col.lower()}\"")
         else:
             if is_custom:
-                select_fields.append(f'COUNT(DISTINCT "{col}") AS "distinct_{col}"')
+                select_fields.append(f'COUNT(DISTINCT {col_ref}) AS "distinct_{col.lower()}"')
             else:
-                select_fields.append(f"COUNT(DISTINCT data->>'{col}') AS \"distinct_{col}\"")
- 
+                select_fields.append(f"COUNT(DISTINCT data->>'{col}') AS \"distinct_{col.lower()}\"")
+
     select_fields.append('COUNT(*) AS "total_samples"')
- 
+
     # 6. Execute KPI aggregations
     kpi_query = f"SELECT {', '.join(select_fields)} FROM {table_name} WHERE {where_str}"
     kpi_result = db.execute(text(kpi_query), params).fetchone()
-    result_dict = kpi_result._asdict() if kpi_result else {}
- 
+    result_dict = {k.lower(): v for k, v in (kpi_result._asdict() if kpi_result else {}).items()}
+
     # Compile KPI lists
     kpis_list = []
     for v in kpi_vars:
         col = v.sql_column_name
-        if db_columns and col not in db_columns:
+        col_key = col.lower()
+        if db_columns and col not in db_columns and col.upper() not in db_columns and col.lower() not in {c.lower() for c in db_columns}:
             continue
         if v.is_numeric:
             kpis_list.append({
@@ -285,26 +318,27 @@ def get_dashboard_summary(
                 "display_name": v.display_name,
                 "display_unit": v.display_unit,
                 "is_numeric": True,
-                "avg": float(result_dict.get(f"avg_{col}") or 0.0) if result_dict.get(f"avg_{col}") is not None else None,
-                "min": float(result_dict.get(f"min_{col}") or 0.0) if result_dict.get(f"min_{col}") is not None else None,
-                "max": float(result_dict.get(f"max_{col}") or 0.0) if result_dict.get(f"max_{col}") is not None else None,
-                "median": float(result_dict.get(f"median_{col}") or 0.0) if result_dict.get(f"median_{col}") is not None else None,
-                "stddev": float(result_dict.get(f"stddev_{col}") or 0.0) if result_dict.get(f"stddev_{col}") is not None else None,
+                "avg": float(result_dict.get(f"avg_{col_key}") or 0.0) if result_dict.get(f"avg_{col_key}") is not None else None,
+                "min": float(result_dict.get(f"min_{col_key}") or 0.0) if result_dict.get(f"min_{col_key}") is not None else None,
+                "max": float(result_dict.get(f"max_{col_key}") or 0.0) if result_dict.get(f"max_{col_key}") is not None else None,
+                "median": float(result_dict.get(f"median_{col_key}") or 0.0) if result_dict.get(f"median_{col_key}") is not None else None,
+                "stddev": float(result_dict.get(f"stddev_{col_key}") or 0.0) if result_dict.get(f"stddev_{col_key}") is not None else None,
             })
         else:
             kpis_list.append({
                 "name": v.name,
                 "display_name": v.display_name,
                 "is_numeric": False,
-                "distinct_count": result_dict.get(f"distinct_{col}") or 0
+                "distinct_count": result_dict.get(f"distinct_{col_key}") or 0
             })
 
     # 7. Compute Total Wells explicitly if primary well column exists
     total_wells = 0
     if dataset.primary_well_column:
         well_col = dataset.primary_well_column
+        well_col_ref = f'"{well_col.upper()}"' if is_oracle else f'"{well_col}"'
         if is_custom:
-            well_q = f"SELECT COUNT(DISTINCT \"{well_col}\") FROM {table_name} WHERE {where_str}"
+            well_q = f"SELECT COUNT(DISTINCT {well_col_ref}) FROM {table_name} WHERE {where_str}"
         else:
             well_q = f"SELECT COUNT(DISTINCT data->>'{well_col}') FROM {table_name} WHERE {where_str}"
         total_wells = db.execute(text(well_q), params).scalar() or 0
@@ -314,10 +348,11 @@ def get_dashboard_summary(
     for v in variables:
         if not v.is_numeric and (v.sql_column_name.endswith("classification") or v.sql_column_name.lower() in ["sample_type", "lithology"]):
             col = v.sql_column_name
-            if db_columns and col not in db_columns:
+            col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
+            if db_columns and col not in db_columns and col.upper() not in db_columns and col.lower() not in {c.lower() for c in db_columns}:
                 continue
             if is_custom:
-                dist_q = f"SELECT \"{col}\", COUNT(*) FROM {table_name} WHERE {where_str} AND \"{col}\" IS NOT NULL GROUP BY \"{col}\""
+                dist_q = f"SELECT {col_ref}, COUNT(*) FROM {table_name} WHERE {where_str} AND {col_ref} IS NOT NULL GROUP BY {col_ref}"
             else:
                 dist_q = f"SELECT data->>'{col}', COUNT(*) FROM {table_name} WHERE {where_str} AND data->>'{col}' IS NOT NULL GROUP BY data->>'{col}'"
             
@@ -329,66 +364,72 @@ def get_dashboard_summary(
     if dataset.primary_well_column:
         well_col = dataset.primary_well_column
         depth_col = dataset.primary_depth_column or "depth_from"
+        well_col_ref = f'"{well_col.upper()}"' if is_oracle else f'"{well_col}"'
+        depth_col_ref = f'"{depth_col.upper()}"' if is_oracle else f'"{depth_col}"'
         
         agg_fields = []
         for v in kpi_vars:
             if v.is_numeric:
                 c = v.sql_column_name
-                if db_columns and c not in db_columns:
+                c_ref = f'"{c.upper()}"' if is_oracle else f'"{c}"'
+                if db_columns and c not in db_columns and c.upper() not in db_columns and c.lower() not in {c.lower() for c in db_columns}:
                     continue
                 if is_custom:
-                    agg_fields.append(f'ROUND(AVG("{c}")::numeric, 2) AS "avg_{c}"')
+                    agg_fields.append(f'ROUND(AVG({c_ref}), 2) AS "avg_{c.lower()}"')
                 else:
-                    agg_fields.append(f"ROUND(AVG(CAST(data->>'{c}' AS DOUBLE PRECISION))::numeric, 2) AS \"avg_{c}\"")
+                    agg_fields.append(f"ROUND(AVG(CAST(data->>'{c}' AS DOUBLE PRECISION)), 2) AS \"avg_{c.lower()}\"")
         
         agg_str = ", " + ", ".join(agg_fields) if agg_fields else ""
         
         if is_custom:
             well_summary_q = f"""
                 SELECT 
-                    "{well_col}" AS well_name,
-                    COUNT(*) AS samples_count,
-                    MIN("{depth_col}") AS min_depth,
-                    MAX("{depth_col}") AS max_depth
+                    {well_col_ref} AS "well_name",
+                    COUNT(*) AS "samples_count",
+                    MIN({depth_col_ref}) AS "min_depth",
+                    MAX({depth_col_ref}) AS "max_depth"
                     {agg_str}
                 FROM {table_name}
                 WHERE {where_str}
-                GROUP BY "{well_col}"
-                ORDER BY "well_name"
+                GROUP BY {well_col_ref}
+                ORDER BY {well_col_ref}
             """
         else:
             well_summary_q = f"""
                 SELECT 
-                    data->>'{well_col}' AS well_name,
-                    COUNT(*) AS samples_count,
-                    MIN(CAST(data->>'{depth_col}' AS DOUBLE PRECISION)) AS min_depth,
-                    MAX(CAST(data->>'{depth_col}' AS DOUBLE PRECISION)) AS max_depth
+                    data->>'{well_col}' AS "well_name",
+                    COUNT(*) AS "samples_count",
+                    MIN(CAST(data->>'{depth_col}' AS DOUBLE PRECISION)) AS "min_depth",
+                    MAX(CAST(data->>'{depth_col}' AS DOUBLE PRECISION)) AS "max_depth"
                     {agg_str}
                 FROM {table_name}
                 WHERE {where_str}
                 GROUP BY data->>'{well_col}'
-                ORDER BY "well_name"
+                ORDER BY data->>'{well_col}'
             """
             
         try:
             well_res = db.execute(text(well_summary_q), params).fetchall()
             for r in well_res:
-                row_dict = r._asdict()
+                row_dict = {k.lower(): v for k, v in r._asdict().items()}
                 metrics = {}
                 for v in kpi_vars:
                     if v.is_numeric:
-                        if db_columns and v.sql_column_name not in db_columns:
+                        c_key = v.sql_column_name.lower()
+                        if db_columns and v.sql_column_name not in db_columns and v.sql_column_name.upper() not in db_columns and c_key not in {c.lower() for c in db_columns}:
                             continue
-                        val = row_dict.get(f"avg_{v.sql_column_name}")
+                        val = row_dict.get(f"avg_{c_key}")
                         metrics[v.name] = float(val) if val is not None else 0.0
                 
                 wells_summary.append({
-                    "well_name": row_dict["well_name"] or "UNKNOWN",
-                    "samples_count": row_dict["samples_count"],
-                    "min_depth": float(row_dict["min_depth"] or 0.0),
-                    "max_depth": float(row_dict["max_depth"] or 0.0),
+                    "well_name": row_dict.get("well_name") or "UNKNOWN",
+                    "samples_count": row_dict.get("samples_count", 0),
+                    "min_depth": float(row_dict.get("min_depth") or 0.0),
+                    "max_depth": float(row_dict.get("max_depth") or 0.0),
                     "metrics": metrics
                 })
+        except Exception as e:
+            logger.error(f"Failed to generate well-wise dynamic summary: {e}")
         except Exception as e:
             logger.error(f"Failed to generate well-wise dynamic summary: {e}")
 
@@ -447,9 +488,9 @@ def get_chart_data(
 
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = cast(str, dataset.sql_table_name) if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
+    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE_":
         table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
+    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE_":
         table_name = "DL_BIOMARKER_HOPANE_VW"
     elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
         table_name = "DL_BIOMARKER_AROMATIC_VW"
@@ -483,6 +524,23 @@ def get_chart_data(
     except Exception as inspect_err:
         logger.error(f"Failed to inspect SQL table columns: {str(inspect_err)}")
         db_columns = set()
+
+    if db_columns:
+        x_axis = map_column_case_insensitively(x_axis, db_columns)
+        if y_axis:
+            y_axis = map_column_case_insensitively(y_axis, db_columns)
+        if z_axis:
+            z_axis = map_column_case_insensitively(z_axis, db_columns)
+        if color_by:
+            color_by = map_column_case_insensitively(color_by, db_columns)
+
+        for v in variables:
+            v.sql_column_name = cast(Any, map_column_case_insensitively(cast(str, v.sql_column_name), db_columns))
+        var_map = {cast(str, v.sql_column_name): v for v in variables}
+        if dataset.primary_well_column:
+            dataset.primary_well_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_well_column), db_columns))
+        if dataset.primary_depth_column:
+            dataset.primary_depth_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_depth_column), db_columns))
 
     # Verify column exists to prevent SQL Injection
     if x_axis not in var_map:
@@ -555,17 +613,23 @@ def get_chart_data(
         return {"labels": [], "z": []}
 
     # Regular Coordinate plots
-    select_fields = [f'"{x_axis}" AS x'] if is_custom else [f"data->>'{x_axis}' AS x"]
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
+    x_ref = f'"{x_axis.upper()}"' if is_oracle else f'"{x_axis}"'
+    select_fields = [f'{x_ref} AS "x"'] if is_custom else [f"data->>'{x_axis}' AS \"x\""]
     if y_axis:
-        select_fields.append(f'"{y_axis}" AS y' if is_custom else f"data->>'{y_axis}' AS y")
+        y_ref = f'"{y_axis.upper()}"' if is_oracle else f'"{y_axis}"'
+        select_fields.append(f'{y_ref} AS "y"' if is_custom else f"data->>'{y_axis}' AS \"y\"")
     if z_axis:
-        select_fields.append(f'"{z_axis}" AS z' if is_custom else f"data->>'{z_axis}' AS z")
+        z_ref = f'"{z_axis.upper()}"' if is_oracle else f'"{z_axis}"'
+        select_fields.append(f'{z_ref} AS "z"' if is_custom else f"data->>'{z_axis}' AS \"z\"")
     if color_by:
-        select_fields.append(f'"{color_by}" AS color_by' if is_custom else f"data->>'{color_by}' AS color_by")
+        cb_ref = f'"{color_by.upper()}"' if is_oracle else f'"{color_by}"'
+        select_fields.append(f'{cb_ref} AS "color_by"' if is_custom else f"data->>'{color_by}' AS \"color_by\"")
 
     order_str = ""
     if chart_type == "depth_profile" and y_axis:
-        order_str = f' ORDER BY "{y_axis}" DESC' if is_custom else f" ORDER BY CAST(data->>'{y_axis}' AS DOUBLE PRECISION) DESC"
+        y_ref = f'"{y_axis.upper()}"' if is_oracle else f'"{y_axis}"'
+        order_str = f' ORDER BY {y_ref} DESC' if is_custom else f" ORDER BY CAST(data->>'{y_axis}' AS DOUBLE PRECISION) DESC"
 
     query = f"SELECT {', '.join(select_fields)} FROM {table_name} WHERE {where_str}{order_str}"
     res = db.execute(text(query), params).fetchall()
@@ -576,7 +640,7 @@ def get_chart_data(
     z_is_num = var_map[z_axis].is_numeric if z_axis else False
 
     for r in res:
-        row_dict = r._asdict()
+        row_dict = {k.lower(): v for k, v in r._asdict().items()}
         x_val = row_dict["x"]
         y_val = row_dict.get("y")
         z_val = row_dict.get("z")
@@ -643,9 +707,9 @@ def get_scientific_plots(
 
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = cast(str, dataset.sql_table_name) if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
+    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE_":
         table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
+    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE_":
         table_name = "DL_BIOMARKER_HOPANE_VW"
     elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
         table_name = "DL_BIOMARKER_AROMATIC_VW"
@@ -664,19 +728,22 @@ def get_scientific_plots(
     variables = db.query(VariableRegistry).filter(VariableRegistry.dataset_id == dataset_id).all()
     var_map = {cast(str, v.sql_column_name): v for v in variables}
 
-    # Inspect database columns
-    try:
-        from sqlalchemy import inspect
-        bind = db.get_bind()
-        inspector = inspect(bind)
+    # Inspect database columns (cached to avoid slow database inspector catalog queries on every API request)
+    db_columns = _TABLE_COLUMNS_CACHE.get(table_name)
+    if db_columns is None:
         try:
-            columns_meta = inspector.get_columns(table_name)
-        except Exception:
-            columns_meta = inspector.get_columns(table_name.lower())
-        db_columns = {c['name'] for c in columns_meta}
-    except Exception as inspect_err:
-        logger.error(f"Failed to inspect SQL table columns: {str(inspect_err)}")
-        db_columns = set()
+            from sqlalchemy import inspect
+            bind = db.get_bind()
+            inspector = inspect(bind)
+            try:
+                columns_meta = inspector.get_columns(table_name)
+            except Exception:
+                columns_meta = inspector.get_columns(table_name.lower())
+            db_columns = {c['name'] for c in columns_meta}
+            _TABLE_COLUMNS_CACHE[table_name] = db_columns
+        except Exception as inspect_err:
+            logger.error(f"Failed to inspect SQL table columns: {str(inspect_err)}")
+            db_columns = set()
 
     # Compile query params
     q_params = dict(request.query_params)
@@ -694,6 +761,7 @@ def get_scientific_plots(
     )
 
     # Resolve columns to select
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
     cols_to_select = []
     if is_custom:
         allowed_cols = None
@@ -704,13 +772,15 @@ def get_scientific_plots(
 
         for v in variables:
             col = v.sql_column_name
-            if db_columns and col in db_columns:
+            col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
+            if not db_columns or col in db_columns or col.upper() in db_columns or col.lower() in {c.lower() for c in db_columns}:
                 if allowed_cols is None or col.lower() in allowed_cols:
-                    cols_to_select.append(f'"{col}"')
+                    cols_to_select.append(col_ref)
         if not cols_to_select:
             return []
         if "id" not in [c.replace('"', '').lower() for c in cols_to_select]:
-            cols_to_select.insert(0, '"id"')
+            id_ref = '"ID"' if is_oracle else '"id"'
+            cols_to_select.insert(0, id_ref)
         query = f"SELECT {', '.join(cols_to_select)} FROM {table_name} WHERE {where_str}"
     else:
         query = f"SELECT id, data FROM {table_name} WHERE {where_str}"
@@ -722,11 +792,12 @@ def get_scientific_plots(
         row_dict = r._asdict()
         if is_custom:
             record_data = {}
-            for k, val in row_dict.items():
+            for raw_k, val in row_dict.items():
+                k = raw_k.lower()
                 if val is None:
                     record_data[k] = None
                     continue
-                var_def = var_map.get(k)
+                var_def = var_map.get(k) or var_map.get(raw_k)
                 if var_def and var_def.is_numeric:
                     try:
                         record_data[k] = float(val)
@@ -736,14 +807,15 @@ def get_scientific_plots(
                     record_data[k] = val
             points.append(record_data)
         else:
-            item_data = row_dict["data"] or {}
-            item_data["id"] = row_dict["id"]
+            item_data = row_dict.get("data") or {}
+            item_data["id"] = row_dict.get("id") or row_dict.get("ID")
             record_data = {}
-            for k, val in item_data.items():
+            for raw_k, val in item_data.items():
+                k = raw_k.lower()
                 if val is None:
                     record_data[k] = None
                     continue
-                var_def = var_map.get(k)
+                var_def = var_map.get(k) or var_map.get(raw_k)
                 if var_def and var_def.is_numeric:
                     try:
                         record_data[k] = float(val)
@@ -856,9 +928,9 @@ def find_variable_by_concept(variables: List[VariableRegistry], concept: str) ->
 def fetch_dataset_records(db: Session, dataset: DatasetRegistry, variables: List[VariableRegistry], query_params: Dict[str, Any]) -> List[Dict[str, Any]]:
     is_custom = dataset.sql_table_name and dataset.sql_table_name != "generic_dataset_records"
     table_name = cast(str, dataset.sql_table_name) if is_custom else "generic_dataset_records"
-    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE":
+    if table_name and table_name.upper() == "DL_BIOMARKER_STERANE_":
         table_name = "DL_BIOMARKER_STERANE_VW"
-    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE":
+    elif table_name and table_name.upper() == "DL_BIOMARKER_HOPANE_":
         table_name = "DL_BIOMARKER_HOPANE_VW"
     elif table_name and table_name.upper() == "DL_BIOMARKER_AROMATIC_":
         table_name = "DL_BIOMARKER_AROMATIC_VW"
@@ -870,9 +942,6 @@ def fetch_dataset_records(db: Session, dataset: DatasetRegistry, variables: List
         DatasetVersion.is_active == True
     ).first()
     active_version_id = cast(Optional[int], active_version.id) if active_version else None
-
-    var_map = {cast(str, v.sql_column_name): v for v in variables}
-    where_str, params = build_where_clause(dataset, var_map, query_params, active_version_id)
 
     try:
         from sqlalchemy import inspect
@@ -886,16 +955,30 @@ def fetch_dataset_records(db: Session, dataset: DatasetRegistry, variables: List
     except Exception:
         db_columns = set()
 
+    if db_columns:
+        for v in variables:
+            v.sql_column_name = cast(Any, map_column_case_insensitively(cast(str, v.sql_column_name), db_columns))
+        if dataset.primary_well_column:
+            dataset.primary_well_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_well_column), db_columns))
+        if dataset.primary_depth_column:
+            dataset.primary_depth_column = cast(Any, map_column_case_insensitively(cast(str, dataset.primary_depth_column), db_columns))
+
+    var_map = {cast(str, v.sql_column_name): v for v in variables}
+    where_str, params = build_where_clause(dataset, var_map, query_params, active_version_id)
+
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
     if is_custom:
         cols_to_select = []
         for v in variables:
             col = v.sql_column_name
-            if db_columns and col in db_columns:
-                cols_to_select.append(f'"{col}"')
+            col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
+            if not db_columns or col in db_columns or col.upper() in db_columns or col.lower() in {c.lower() for c in db_columns}:
+                cols_to_select.append(col_ref)
         if not cols_to_select:
             return []
         if "id" not in [c.replace('"', '').lower() for c in cols_to_select]:
-            cols_to_select.insert(0, '"id"')
+            id_ref = '"ID"' if is_oracle else '"id"'
+            cols_to_select.insert(0, id_ref)
         query = f"SELECT {', '.join(cols_to_select)} FROM {table_name} WHERE {where_str}"
     else:
         query = f"SELECT id, data FROM {table_name} WHERE {where_str}"
@@ -907,11 +990,12 @@ def fetch_dataset_records(db: Session, dataset: DatasetRegistry, variables: List
         row_dict = r._asdict()
         if is_custom:
             record_data = {}
-            for k, val in row_dict.items():
+            for raw_k, val in row_dict.items():
+                k = raw_k.lower()
                 if val is None:
                     record_data[k] = None
                     continue
-                var_def = var_map.get(k)
+                var_def = var_map.get(k) or var_map.get(raw_k)
                 if var_def and var_def.is_numeric:
                     try:
                         record_data[k] = float(val)
@@ -921,14 +1005,15 @@ def fetch_dataset_records(db: Session, dataset: DatasetRegistry, variables: List
                     record_data[k] = val
             points.append(record_data)
         else:
-            item_data = row_dict["data"] or {}
-            item_data["id"] = row_dict["id"]
+            item_data = row_dict.get("data") or {}
+            item_data["id"] = row_dict.get("id") or row_dict.get("ID")
             record_data = {}
-            for k, val in item_data.items():
+            for raw_k, val in item_data.items():
+                k = raw_k.lower()
                 if val is None:
                     record_data[k] = None
                     continue
-                var_def = var_map.get(k)
+                var_def = var_map.get(k) or var_map.get(raw_k)
                 if var_def and var_def.is_numeric:
                     try:
                         record_data[k] = float(val)

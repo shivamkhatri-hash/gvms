@@ -42,6 +42,7 @@ export const laboratories: Laboratory[] = [
     items: [
       { label: 'Gas Chromatography', path: '/oil/dashboard', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] },
       { label: 'Oil Composition', path: '/oil/composition-dashboard', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] },
+      { label: 'Cross Plot', path: '/oil/cross-plot', icon: LayoutDashboard, roles: ['admin', 'researcher', 'viewer'] },
     ]
   },
   {

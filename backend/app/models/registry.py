@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, DateTime, ForeignKey, func, ARRAY
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, DateTime, ForeignKey, func, JSON, Sequence
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -7,7 +7,7 @@ from app.core.database import Base
 class DatasetRegistry(Base):
     __tablename__ = "dataset_registry"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('dataset_registry_seq'), primary_key=True, index=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False, index=True)
     display_name = Column(String(150), nullable=False)
     sql_table_name = Column(String(100), nullable=True)
@@ -15,10 +15,10 @@ class DatasetRegistry(Base):
     status = Column(String(50), nullable=False, default="active")
     version = Column(String(50), nullable=False, default="1.0")
     description = Column(Text, nullable=True)
-    mapping_config = Column(JSONB, nullable=False, default=dict)
-    graph_config = Column(JSONB, nullable=False, default=list)
-    filter_config = Column(JSONB, nullable=False, default=list)
-    required_columns = Column(ARRAY(String), nullable=False, default=list)
+    mapping_config = Column(JSON, nullable=False, default=dict)
+    graph_config = Column(JSON, nullable=False, default=list)
+    filter_config = Column(JSON, nullable=False, default=list)
+    required_columns = Column(JSON, nullable=False, default=list)
     primary_depth_column = Column(String(100), nullable=True)
     primary_well_column = Column(String(100), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -37,7 +37,7 @@ class DatasetRegistry(Base):
 class DatasetVersion(Base):
     __tablename__ = "dataset_versions"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('dataset_version_seq'), primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("dataset_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     version_number = Column(Integer, nullable=False)
     filename = Column(String(255), nullable=False)
@@ -60,10 +60,10 @@ class DatasetVersion(Base):
 class GenericDatasetRecord(Base):
     __tablename__ = "generic_dataset_records"
 
-    id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    id = Column(BigInteger, Sequence('generic_record_seq'), primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("dataset_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     version_id = Column(Integer, ForeignKey("dataset_versions.id", ondelete="CASCADE"), nullable=False, index=True)
-    data = Column(JSONB, nullable=False)
+    data = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -74,7 +74,7 @@ class GenericDatasetRecord(Base):
 class VariableRegistry(Base):
     __tablename__ = "variable_registry"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('variable_registry_seq'), primary_key=True, index=True, autoincrement=True)
     dataset_id = Column(Integer, ForeignKey("dataset_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     display_name = Column(String(150), nullable=False)
@@ -90,7 +90,7 @@ class VariableRegistry(Base):
     description = Column(Text, nullable=True)
     validation_rule = Column(Text, nullable=True)
     category = Column(String(100), nullable=True)
-    synonyms = Column(ARRAY(String), nullable=False, default=list)
+    synonyms = Column(JSON, nullable=False, default=list)
     is_required = Column(Boolean, nullable=False, default=False)
     is_nullable = Column(Boolean, nullable=False, default=True)
     is_calculated = Column(Boolean, nullable=False, default=False)
@@ -105,7 +105,7 @@ class VariableRegistry(Base):
 class VersionRecordMapping(Base):
     __tablename__ = "version_record_mapping"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, Sequence('version_record_seq'), primary_key=True, index=True, autoincrement=True)
     version_id = Column(Integer, ForeignKey("dataset_versions.id", ondelete="CASCADE"), nullable=False, index=True)
     record_id = Column(Integer, nullable=False)
 

@@ -259,23 +259,10 @@ export const OilCompositionDashboard: React.FC = () => {
     enabled: !!selectedDatasetId,
   });
 
-  // 6. Fetch All Filtered Tricyclic Records from Biomarker DB
-  const { data: tricyclicDbData, isLoading: tricyclicDataLoading, refetch: refetchTricyclic } = useQuery<any[]>({
-    queryKey: ['scientific-plots-data-tricyclic', 8, serializedFilters],
-    queryFn: () =>
-      api.get<any[]>('/dashboard/scientific-plots', {
-        params: {
-          dataset_id: 8,
-          ...serializedFilters,
-        },
-      }).then((res) => res.data),
-  });
-
   const handleRefreshAll = () => {
     refetchStats();
     refetchChart();
     refetchOil();
-    refetchTricyclic();
   };
 
   // API Gravity vs Depth scientific points mapping (declared before early returns to satisfy React rules of hooks)
@@ -301,92 +288,7 @@ export const OilCompositionDashboard: React.FC = () => {
       .filter((p) => p !== null);
   }, [oilData]);
 
-  // Helper to get marker styles matching the reference image for Wells A to E, and fallback styles for others
-  const getTricyclicMarkerStyle = (wellName: string) => {
-    switch (wellName) {
-      case 'A':
-        return { symbol: 'diamond', color: '#a855f7', size: 10 };
-      case 'B':
-        return { symbol: 'square', color: '#db2777', size: 10 };
-      case 'C':
-        return { symbol: 'asterisk', color: '#ea580c', size: 12 };
-      case 'D':
-        return { symbol: 'circle', color: '#dc2626', size: 10 };
-      case 'E':
-        return { symbol: 'plus', color: '#2563eb', size: 12 };
-      default:
-        // Stable dynamic colors and symbols for other wells
-        const hash = wellName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const colors = ['#16a34a', '#d97706', '#0891b2', '#4f46e5', '#db2777', '#0d9488', '#7c3aed'];
-        const symbols = ['circle', 'triangle-up', 'triangle-down', 'diamond', 'square', 'cross'];
-        return {
-          symbol: symbols[hash % symbols.length],
-          color: colors[hash % colors.length],
-          size: 10
-        };
-    }
-  };
 
-  // Generate Plotly traces for Tricyclic Terpane scatter plot
-  const tricyclicTraces = React.useMemo(() => {
-    if (!tricyclicDbData || !Array.isArray(tricyclicDbData)) return [];
-    
-    // Group points by well name
-    const groups: Record<string, any[]> = {};
-    
-    tricyclicDbData.forEach((row) => {
-      const c19 = parseFloat(row.c19tt);
-      const c23 = parseFloat(row.c23tt);
-      const c24tet = parseFloat(row.c24tet_tt);
-      
-      if (!isNaN(c19) && !isNaN(c23) && !isNaN(c24tet) && (c19 + c23) > 0 && (c24tet + c23) > 0) {
-        const x = c19 / (c19 + c23);
-        const y = c24tet / (c24tet + c23);
-        const well = row.name || 'Unknown';
-        
-        if (!groups[well]) {
-          groups[well] = [];
-        }
-        groups[well].push({
-          x,
-          y,
-          well_name: well,
-          depth: row.depth || 'N/A',
-          formation: row.formation || 'N/A',
-          object: row.object || 'N/A',
-          c19tt: row.c19tt,
-          c23tt: row.c23tt,
-          c24tet_tt: row.c24tet_tt,
-          ...row // Attach full row details
-        });
-      }
-    });
-
-    return Object.entries(groups).map(([wellName, pts]) => {
-      const style = getTricyclicMarkerStyle(wellName);
-      return {
-        x: pts.map(p => p.x),
-        y: pts.map(p => p.y),
-        mode: 'markers',
-        name: wellName,
-        marker: {
-          symbol: style.symbol,
-          color: style.color,
-          size: style.size,
-          line: { width: 0 }
-        },
-        customdata: pts,
-        text: pts.map(p => 
-          `<b>Well Name:</b> ${p.well_name}<br>` +
-          `<b>Depth:</b> ${p.depth} m<br>` +
-          `<b>Formation:</b> ${p.formation}<br>` +
-          `<b>X (C19TT/(C19TT+23TT)):</b> ${p.x.toFixed(3)}<br>` +
-          `<b>Y (C24TeT/(C24TeT+23TT)):</b> ${p.y.toFixed(3)}`
-        ),
-        hovertemplate: '%{text}<extra></extra>'
-      };
-    });
-  }, [tricyclicDbData]);
 
   // State for tabs
   const [activeTab, setActiveTab] = useState<'scientific' | 'workbook' | 'builder'>('scientific');
@@ -533,7 +435,7 @@ export const OilCompositionDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200">
+      <div className="hidden border-b border-slate-200">
         <button
           onClick={() => setActiveTab('scientific')}
           className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
@@ -555,145 +457,133 @@ export const OilCompositionDashboard: React.FC = () => {
           ⚙️ Interactive Chart Builder
         </button>
       </div>
-
-      {/* ── VISUALIZATION PANEL ── */}
-      <div className={`grid grid-cols-1 ${showFilters ? 'lg:grid-cols-4' : ''} gap-6`}>
-
-        {/* Left Side: Collapsible Filters */}
-        <Card className={`${showFilters ? 'lg:col-span-1' : 'w-full'} border border-slate-200/60 shadow-xs h-fit`} noPadding>
-          <div 
-            className={`flex items-center justify-between cursor-pointer px-6 py-4 ${showFilters ? 'border-b border-slate-100' : ''}`} 
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <Filter className="w-4 h-4 text-ongc-blue" />
-              <span>REGISTRY FILTERS</span>
-              {activeFiltersCount > 0 && (
-                <span className="bg-amber-100 text-amber-800 border-amber-200 text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-1">
-                  {activeFiltersCount} active
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              {activeFiltersCount > 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleResetFilters(); }}
-                  className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
-                >
-                  Clear All
-                </button>
-              )}
-              <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
-                {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}
-              </span>
-            </div>
+      {/* Collapsible Filters Card */}
+      <Card className="bg-slate-50/50 border-slate-200 shadow-xs animate-fade-in" noPadding>
+        <div 
+          className={`flex items-center justify-between cursor-pointer p-6 ${showFilters ? 'border-b border-slate-200' : ''}`} 
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <Filter className="w-4 h-4 text-ongc-blue" />
+            <span>REGISTRY FILTERS</span>
+            {(!showFilters) && (
+              <Badge label="Collapsed" />
+            )}
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleResetFilters(); }}
+              className="text-[10px] font-bold text-slate-400 hover:text-ongc-blue transition-colors"
+            >
+              Clear All
+            </button>
+            <span className="text-xs font-bold text-slate-500 hover:text-slate-800 select-none">
+              {showFilters ? 'Hide Filters ˄' : 'Show Filters ˅'}
+            </span>
+          </div>
+        </div>
 
-          {showFilters && (
-            <div className="p-6 space-y-6">
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+            {/* Categorical Filters */}
+            {metadata?.filter_options &&
+              Object.entries(metadata.filter_options)
+                .filter(([key]) => ['formation', 'location', 'material_type', 'well_name', 'object_number', 'ubhi', 'analysis_date'].includes(key))
+                .map(([key, opts]) => {
+                  const searchVal = filterSearches[key] || '';
+                  const filteredOpts = (opts || []).filter((o) =>
+                    o.toLowerCase().includes(searchVal.toLowerCase())
+                  );
+                  const checkedOpts = filters[key] || [];
 
-              {/* Categorical Filters */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-700 border-b border-slate-100 pb-1.5">Categorical Filters</h3>
+                  return (
+                    <div key={key} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs flex flex-col">
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                        {formatParamLabel(key === 'well_name' ? 'Well Name' : key)}
+                      </label>
 
-                {metadata?.filter_options &&
-                  Object.entries(metadata.filter_options)
-                    .filter(([key]) => ['formation', 'location', 'material_type', 'well_name', 'object_number', 'ubhi', 'analysis_date'].includes(key))
-                    .map(([key, opts]) => {
-                      const searchVal = filterSearches[key] || '';
-                      const filteredOpts = (opts || []).filter((o) =>
-                        o.toLowerCase().includes(searchVal.toLowerCase())
-                      );
-                      const checkedOpts = filters[key] || [];
-
-                      return (
-                        <div key={key} className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{formatParamLabel(key === 'well_name' ? 'Well Name' : key)}</label>
-
-                          {/* Inner Search Box */}
-                          {opts.length > 5 && (
-                            <div className="relative">
-                              <input
-                                type="text"
-                                placeholder={`Search ${formatParamLabel(key === 'well_name' ? 'Well Name' : key)}...`}
-                                value={searchVal}
-                                onChange={(e) =>
-                                  setFilterSearches((prev) => ({ ...prev, [key]: e.target.value }))
-                                }
-                                className="w-full text-[11px] rounded-lg border-slate-200 bg-slate-50/50 py-1 pl-6 pr-2 focus:ring-1 focus:ring-ongc-blue"
-                              />
-                              <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
-                            </div>
-                          )}
-
-                          <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pl-1 border border-slate-100 rounded-lg p-1.5 bg-slate-50/20">
-                            {filteredOpts.length === 0 ? (
-                              <div className="text-[10px] text-slate-400 italic">No matches</div>
-                            ) : (
-                              filteredOpts.map((opt) => {
-                                const isChecked = checkedOpts.includes(opt);
-                                return (
-                                  <div
-                                    key={opt}
-                                    onClick={() => toggleMultiSelect(key, opt)}
-                                    className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800"
-                                  >
-                                    {isChecked ? (
-                                      <CheckSquare className="w-4 h-4 text-ongc-blue shrink-0" />
-                                    ) : (
-                                      <Square className="w-4 h-4 text-slate-300 shrink-0" />
-                                    )}
-                                    <span className="truncate">{opt}</span>
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
+                      {/* Inner Search Box */}
+                      {opts.length > 5 && (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder={`Search...`}
+                            value={searchVal}
+                            onChange={(e) =>
+                              setFilterSearches((prev) => ({ ...prev, [key]: e.target.value }))
+                            }
+                            className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 pl-6 pr-2 focus:ring-1 focus:ring-ongc-blue"
+                          />
+                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
                         </div>
-                      );
-                    })}
-              </div>
+                      )}
 
-              {/* Numeric Bound Filters */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-700 border-b border-slate-100 pb-1.5">Numeric Bounds</h3>
-                <div className="max-h-80 overflow-y-auto space-y-4 pr-1">
-                  {metadata?.filter_ranges &&
-                    Object.entries(metadata.filter_ranges).map(([key, range]) => {
-                      const current = filters[key] || {};
-                      return (
-                        <div key={key} className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 block truncate font-mono">
-                            {formatParamLabel(key)}
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              placeholder={`Min: ${range.min.toFixed(2)}`}
-                              value={current.min === undefined ? '' : current.min}
-                              onChange={(e) => handleRangeChange(key, 'min', e.target.value)}
-                              className="w-1/2 text-xs rounded-lg border-slate-200 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                            />
-                            <span className="text-slate-400 text-xs">-</span>
-                            <input
-                              type="number"
-                              placeholder={`Max: ${range.max.toFixed(2)}`}
-                              value={current.max === undefined ? '' : current.max}
-                              onChange={(e) => handleRangeChange(key, 'max', e.target.value)}
-                              className="w-1/2 text-xs rounded-lg border-slate-200 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
+                      <div className="max-h-24 overflow-y-auto space-y-1.5 pt-1 pl-1 flex-1">
+                        {filteredOpts.length === 0 ? (
+                          <div className="text-[10px] text-slate-400 italic">No matches</div>
+                        ) : (
+                          filteredOpts.map((opt) => {
+                            const isChecked = checkedOpts.includes(opt);
+                            return (
+                              <div
+                                key={opt}
+                                onClick={() => toggleMultiSelect(key, opt)}
+                                className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 hover:text-slate-800"
+                              >
+                                {isChecked ? (
+                                  <CheckSquare className="w-4 h-4 text-ongc-blue shrink-0" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                                )}
+                                <span className="truncate">{opt}</span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
 
-        {/* Right Side: Visualizations */}
-        <div className={showFilters ? 'lg:col-span-3 space-y-6' : 'w-full space-y-6'}>
+            {/* Numeric Bound Filters */}
+            {metadata?.filter_ranges &&
+              Object.entries(metadata.filter_ranges).map(([key, range]) => {
+                const current = filters[key] || {};
+                return (
+                  <div key={key} className="space-y-1.5 p-2.5 bg-white border border-slate-100 rounded-xl shadow-3xs">
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                      {formatParamLabel(key)}
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="w-1/2">
+                        <label className="text-[9px] text-slate-400 block">Min Bound</label>
+                        <input
+                          type="number"
+                          placeholder={range.min.toFixed(2)}
+                          value={current.min === undefined ? '' : current.min}
+                          onChange={(e) => handleRangeChange(key, 'min', e.target.value)}
+                          className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                        />
+                      </div>
+                      <div className="w-1/2">
+                        <label className="text-[9px] text-slate-400 block">Max Bound</label>
+                        <input
+                          type="number"
+                          placeholder={range.max.toFixed(2)}
+                          value={current.max === undefined ? '' : current.max}
+                          onChange={(e) => handleRangeChange(key, 'max', e.target.value)}
+                          className="w-full text-xs rounded-lg border-slate-250 bg-slate-50/50 py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </Card>
+
+
           {oilDataLoading ? (
             <div className="h-96 flex items-center justify-center">
               <Spinner size="lg" />
@@ -727,93 +617,6 @@ export const OilCompositionDashboard: React.FC = () => {
                     </Card>
                   )}
 
-                  {tricyclicDbData && tricyclicDbData.length > 0 && (
-                    <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                      <div className="border-b border-slate-100 p-5 pb-3">
-                        <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                          <h4 className="text-sm font-bold text-slate-800">Tricyclic Terpane Ratio Plot</h4>
-                        </div>
-                      </div>
-                      <div className="p-5 h-[550px] w-full">
-                        {tricyclicDataLoading ? (
-                          <div className="h-full flex items-center justify-center">
-                            <Spinner />
-                          </div>
-                        ) : tricyclicTraces.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-                            No coordinate points available for Tricyclic Terpane ratio plot.
-                          </div>
-                        ) : (
-                          <Plot
-                            data={tricyclicTraces}
-                            layout={applyGlobalLayoutDefaults({
-                              xaxis: {
-                                title: 'C19TT/(C19TT+C23TT)',
-                                range: [0.0, 1.0],
-                                dtick: 0.20,
-                                tickformat: '.2f',
-                                showgrid: false,
-                                zeroline: false,
-                                linecolor: '#000000',
-                                linewidth: 2,
-                                mirror: true,
-                                showline: true
-                              },
-                              yaxis: {
-                                title: 'C24TeT/(C24TeT+C23TT)',
-                                range: [0.0, 1.0],
-                                dtick: 0.20,
-                                tickformat: '.2f',
-                                showgrid: false,
-                                zeroline: false,
-                                linecolor: '#000000',
-                                linewidth: 2,
-                                mirror: true,
-                                showline: true
-                              },
-                              margin: { l: 70, r: 50, t: 40, b: 100 },
-                              autosize: true,
-                              hovermode: 'closest',
-                              showlegend: true,
-                              legend: {
-                                orientation: 'h',
-                                x: 0.5,
-                                y: -0.22,
-                                xanchor: 'center',
-                                yanchor: 'top',
-                                font: { size: 10, color: '#475569' },
-                                bordercolor: '#cbd5e1',
-                                borderwidth: 1
-                              }
-                            })}
-                            useResizeHandler={true}
-                            className="w-full h-full"
-                            onClick={(data) => {
-                              if (data.points && data.points.length > 0) {
-                                const pointInfo = data.points[0].customdata;
-                                if (pointInfo) {
-                                  setSelectedPoint(pointInfo);
-                                }
-                              }
-                            }}
-                            config={{
-                              ...GLOBAL_PLOTLY_EXPORT_CONFIG,
-                              modeBarButtonsToRemove: [
-                                'select2d',
-                                'lasso2d',
-                                'zoomIn2d',
-                                'zoomOut2d',
-                                'autoScale2d',
-                                'toggleSpikelines',
-                                'hoverCompareCartesian',
-                                'hoverClosestCartesian'
-                              ]
-                            }}
-                          />
-                        )}
-                      </div>
-                    </Card>
-                  )}
 
                   <DashboardDatasetTable
                     title="Oil Composition Dataset Records"
@@ -922,8 +725,7 @@ export const OilCompositionDashboard: React.FC = () => {
               
             </div>
           )}
-        </div>
-      </div>
+
       {/* ── POINT DETAILS MODAL ── */}
       {selectedPoint && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
