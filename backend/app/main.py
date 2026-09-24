@@ -10,16 +10,21 @@ from app.core.logging import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing database schemas and seeding default accounts...")
+    logger.info("Initializing database connection...")
     db = SessionLocal()
     try:
+        from sqlalchemy import text
+        is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
+        # Test quick connectivity before running DDL suite
+        db.execute(text("SELECT 1 FROM DUAL" if is_oracle else "SELECT 1"))
         init_db(db)
         logger.info("Database initialization completed successfully.")
     except Exception as e:
-        logger.error(f"Error initializing database on startup: {str(e)}")
+        logger.warning(f"Database connection offline or skipped on startup: {str(e)}")
     finally:
         db.close()
     yield
+
 
 
 app = FastAPI(

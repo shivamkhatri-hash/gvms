@@ -68,7 +68,10 @@ class Settings(BaseSettings):
     def sqlalchemy_database_url(self) -> str:
         if self.DATABASE_PROVIDER.lower() == "oracle":
             return f"oracle+oracledb://{self.ORACLE_USER}:{self.ORACLE_PASSWORD}@{self.ORACLE_HOST}:{self.ORACLE_PORT}/?service_name={self.ORACLE_SERVICE_NAME}"
+        elif self.DATABASE_PROVIDER.lower() == "sqlite":
+            return self.DATABASE_URL if "sqlite" in (self.DATABASE_URL or "") else "sqlite:///./gvms_local.db"
         return self.DATABASE_URL
+
 
     # Dynamic Column Mappings for CSV/Excel Ingestion Engine
     LIMS_COLUMN_MAPPING: dict = {

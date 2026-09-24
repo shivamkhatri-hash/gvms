@@ -1,5 +1,4 @@
-from typing import List, Optional
-from uuid import UUID
+from typing import List, Optional, Any
 from sqlalchemy.orm import Session
 from app.models.log import UploadLog, AuditLog
 
@@ -16,7 +15,7 @@ class CRUDLog:
         skipped_rows: int,
         error_summary: Optional[str] = None,
         quality_report: Optional[str] = None,
-        uploader_id: Optional[UUID] = None
+        uploader_id: Optional[Any] = None
     ) -> Optional[UploadLog]:
         try:
             db_obj = UploadLog(
@@ -27,7 +26,7 @@ class CRUDLog:
                 skipped_rows=skipped_rows,
                 error_summary=error_summary,
                 quality_report=quality_report,
-                uploaded_by=uploader_id
+                uploaded_by=str(uploader_id) if uploader_id else None
             )
             db.add(db_obj)
             db.commit()
@@ -49,7 +48,7 @@ class CRUDLog:
         self,
         db: Session,
         *,
-        user_id: Optional[UUID],
+        user_id: Optional[Any] = None,
         action: str,
         resource: str,
         details: Optional[str] = None,
@@ -57,7 +56,7 @@ class CRUDLog:
     ) -> Optional[AuditLog]:
         try:
             db_obj = AuditLog(
-                user_id=user_id,
+                user_id=str(user_id) if user_id else None,
                 action=action,
                 resource=resource,
                 details=details,

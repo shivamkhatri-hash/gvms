@@ -254,11 +254,11 @@ export const AromaticDashboard: React.FC = () => {
     }).filter(Boolean);
   }, [aromaticData, prPhData]);
 
-  // Export report
+  // Export report with direct on-screen Plotly graph snapshots
   const handleExportPDF = async () => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport('pdf', selectedDatasetId, serializedFilters);
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
     } catch (err) {
       console.error('Failed to export PDF:', err);
     }
@@ -832,6 +832,14 @@ export const AromaticDashboard: React.FC = () => {
         </div>
 
         {/* Tab Contents */}
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Aromatic Biomarker Dataset Records"
+          data={aromaticData}
+          variables={aromaticDataset?.variables}
+          isLoading={aromaticDataLoading}
+        />
+
         {activeTab === 'scientific' && (
           <div className="space-y-6">
             {aromaticDataLoading ? (
@@ -852,13 +860,14 @@ export const AromaticDashboard: React.FC = () => {
               <div className="flex flex-col gap-6 w-full">
                 {/* GRAPH 7 — DBT/PHE vs PR/PH */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white">
-                  <div className="border-b border-slate-100 pb-3 mb-4">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">DBT/Phe vs Pr/Ph Plot</h4>
+                  <div className="border-b border-slate-100 pb-3 mb-4 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">DBT/Phe vs Pr/Ph Plot</h4>
                     </div>
                   </div>
                   <div className="w-full h-[580px]">
                     <Plot
+                      title="DBT/Phe vs Pr/Ph Plot"
                       data={renderAromaticPrPhTraces(combinedAromaticPrPhData)}
                       layout={{
                         ...getCommonLayout('DBT/Phe vs Pr/Ph Plot', 'Pr/Ph', 'DBT/Phe'),
@@ -951,13 +960,14 @@ export const AromaticDashboard: React.FC = () => {
 
                 {/* GRAPH 8 — NDR vs TMN */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white">
-                  <div className="border-b border-slate-100 pb-3 mb-4">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">NDR % vs 1,2,7-TMN/1,3,7-TMN Plot</h4>
+                  <div className="border-b border-slate-100 pb-3 mb-4 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">NDR % vs 1,2,7-TMN/1,3,7-TMN Plot</h4>
                     </div>
                   </div>
                   <div className="w-full h-[580px]">
                     <Plot
+                      title="NDR % vs 1,2,7-TMN/1,3,7-TMN Plot"
                       data={renderNDRTMNTraces(aromaticData)}
                       layout={{
                         ...getCommonLayout('NDR % vs 1,2,7-TMN/1,3,7-TMN', '1,2,7-TMN/1,3,7-TMN', 'NDR %'),
@@ -1033,13 +1043,14 @@ export const AromaticDashboard: React.FC = () => {
 
                 {/* GRAPH 9 — ETR vs TMN */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white">
-                  <div className="border-b border-slate-100 pb-3 mb-4">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">ETR % vs 1,2,7-TMN/1,3,7-TMN Plot</h4>
+                  <div className="border-b border-slate-100 pb-3 mb-4 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">ETR % vs 1,2,7-TMN/1,3,7-TMN Plot</h4>
                     </div>
                   </div>
                   <div className="w-full h-[580px]">
                     <Plot
+                      title="ETR % vs 1,2,7-TMN/1,3,7-TMN Plot"
                       data={renderETRTMNTraces(aromaticData)}
                       layout={{
                         ...getCommonLayout('ETR % vs 1,2,7-TMN/1,3,7-TMN', '1,2,7-TMN/1,3,7-TMN', 'ETR %'),
@@ -1085,13 +1096,6 @@ export const AromaticDashboard: React.FC = () => {
                     />
                   </div>
                 </Card>
-
-                <DashboardDatasetTable
-                  title="Aromatic Biomarker Dataset Records"
-                  data={aromaticData}
-                  variables={aromaticDataset?.variables}
-                  isLoading={aromaticDataLoading}
-                />
               </div>
 
             )}

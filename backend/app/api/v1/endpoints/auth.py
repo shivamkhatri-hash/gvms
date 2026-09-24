@@ -63,7 +63,7 @@ def login_access_token(
         client_ip = request.client.host if request.client else "127.0.0.1"
         crud_log.create_audit_log(
             db,
-            user_id=cast(UUID, user_id_val),
+            user_id=str(user_id_val),
             action="USER_LOGIN",
             resource="AUTH",
             details=f"User {user_email_val} logged in successfully.",
@@ -72,8 +72,8 @@ def login_access_token(
     except Exception:
         pass
 
-    access_token = security.create_access_token(subject=user_id_val, role=user_role_val)
-    refresh_token = security.create_refresh_token(subject=user_id_val, role=user_role_val)
+    access_token = security.create_access_token(subject=str(user_id_val), role=user_role_val)
+    refresh_token = security.create_refresh_token(subject=str(user_id_val), role=user_role_val)
 
     return {
         "access_token": access_token,
@@ -107,14 +107,7 @@ def refresh_token(
             detail="Invalid or expired refresh token"
         )
 
-    try:
-        uuid_user_id = UUID(str(user_id))
-        user = crud_user.get_by_id(db, user_id=uuid_user_id)
-    except ValueError:
-        user = None
-
-    if not user:
-        user = db.query(User).filter(User.id == str(user_id)).first()
+    user = crud_user.get_by_id(db, user_id=str(user_id))
 
     if not user or not user.is_active:
         raise HTTPException(
@@ -174,7 +167,7 @@ def forgot_password(email: str, db: Session = Depends(get_db)) -> Any:
     
     crud_log.create_audit_log(
         db,
-        user_id=cast(UUID, user.id),
+        user_id=str(user.id) if user.id else None,
         action="FORGOT_PASSWORD_REQUESTED",
         resource="AUTH",
         details=f"Password reset requested for {email}."

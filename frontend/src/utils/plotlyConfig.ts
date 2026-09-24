@@ -2,15 +2,23 @@
  * Global Plotly Layout and Export Configurations for GVMS
  */
 
+export const sanitizeFileName = (title?: string): string => {
+  if (!title) return 'gvms_chart_export';
+  // Strip HTML tags if any (e.g. <b>...</b>)
+  const plainText = title.replace(/<[^>]*>/g, '').trim();
+  const clean = plainText.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return clean || 'gvms_chart_export';
+};
+
 export const GLOBAL_PLOTLY_EXPORT_CONFIG = {
   displayModeBar: 'hover' as 'hover' | boolean,
   responsive: true,
   toImageButtonOptions: {
     format: 'png' as 'png',
     filename: 'gvms_chart_export',
-    height: 600,
-    width: 800,
-    scale: 2, // High resolution (1600x1200 pixels) white background PNGs
+    height: 700,
+    width: 950,
+    scale: 2, // High resolution (1900x1400 pixels) white background PNGs
     setBackground: '#FFFFFF', // Guarantee solid white background in PNG exports
   },
 };
@@ -22,7 +30,7 @@ export const GLOBAL_PLOTLY_LAYOUT_DEFAULTS = {
   
   // High contrast standard typography
   font: {
-    family: 'Inter, sans-serif',
+    family: 'Inter, system-ui, -apple-system, sans-serif',
     color: '#0F172A',
   },
 };
@@ -34,17 +42,31 @@ export const applyProfessionalBorder = (axisConfig: any) => {
   return {
     ...axisConfig,
     showline: true,
-    linecolor: '#000000', // slate-400 boundary line
+    linecolor: '#000000',
     linewidth: 2,
-    mirror: true, // mirrors the boundary line to opposite side to create a closed box border
+    mirror: true,
+  };
+};
+
+export const getPlotlyExportConfig = (title?: string, customConfig?: any) => {
+  const cleanFilename = sanitizeFileName(title);
+  return {
+    ...GLOBAL_PLOTLY_EXPORT_CONFIG,
+    ...customConfig,
+    toImageButtonOptions: {
+      ...GLOBAL_PLOTLY_EXPORT_CONFIG.toImageButtonOptions,
+      filename: cleanFilename,
+      ...(customConfig?.toImageButtonOptions || {}),
+    },
   };
 };
 
 /**
  * Applies the global layout defaults to any Plotly layout object
+ * Enforces centered graph titles below the X-axis with small font size for snapshot capture
  */
-export const applyGlobalLayoutDefaults = (layout: any) => {
-  const updatedLayout = {
+export const applyGlobalLayoutDefaults = (layout: any, defaultTitle?: string) => {
+  const updatedLayout: any = {
     ...layout,
     ...GLOBAL_PLOTLY_LAYOUT_DEFAULTS,
     // Apply borders to x-axis and y-axis
@@ -59,6 +81,43 @@ export const applyGlobalLayoutDefaults = (layout: any) => {
   if (layout.xaxis2) {
     updatedLayout.xaxis2 = applyProfessionalBorder(layout.xaxis2);
   }
+
+  // Format Graph Title: Center alignment (x: 0.5, xanchor: center) positioned below the X-axis with small font size
+  const rawTitle = (typeof layout.title === 'string' ? layout.title : (layout.title?.text || '')) || defaultTitle || '';
+  const titleObj = typeof layout.title === 'object' ? layout.title : {};
+  
+  if (rawTitle) {
+    updatedLayout.title = {
+      ...titleObj,
+      text: `<b>${rawTitle.replace(/<[^>]*>/g, '')}</b>`,
+      x: 0.5,
+      xanchor: 'center',
+      y: titleObj.y !== undefined && titleObj.y < 0.5 ? titleObj.y : 0.01,
+      yanchor: titleObj.yanchor !== undefined && titleObj.yanchor !== 'top' ? titleObj.yanchor : 'bottom',
+      pad: {
+        b: 2,
+        t: 2,
+        ...(titleObj.pad || {})
+      },
+      font: {
+        family: 'Inter, system-ui, -apple-system, sans-serif',
+        size: 11,
+        color: '#475569',
+        weight: 'bold' as any,
+        ...(titleObj.font || {})
+      },
+    };
+  }
+
+  const existingMargin = layout.margin || {};
+  // Guarantee sufficient bottom margin for x-axis label + small title, and clean top margin
+  updatedLayout.margin = {
+    l: Math.max(existingMargin.l || 0, 70),
+    r: Math.max(existingMargin.r || 0, 40),
+    t: existingMargin.t !== undefined ? existingMargin.t : 35,
+    b: Math.max(existingMargin.b || 0, 75),
+    ...existingMargin,
+  };
   
   // Force legends horizontally centered below the graph
   if (layout.showlegend !== false && updatedLayout.showlegend !== false) {
@@ -74,15 +133,9 @@ export const applyGlobalLayoutDefaults = (layout: any) => {
       ...existingLegend
     };
 
-    const existingMargin = layout.margin || {};
-    updatedLayout.margin = {
-      l: 60,
-      r: 30,
-      t: 50,
-      ...existingMargin,
-      b: Math.max(existingMargin.b || 0, 100)
-    };
+    updatedLayout.margin.b = Math.max(updatedLayout.margin.b || 0, 100);
   }
 
   return updatedLayout;
 };
+

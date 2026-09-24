@@ -236,7 +236,11 @@ export const InorganicDashboard: React.FC = () => {
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      if (format === 'pdf') {
+        await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+      } else {
+        await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      }
     } catch (err) {
       alert('Report download failed.');
     }
@@ -252,6 +256,7 @@ export const InorganicDashboard: React.FC = () => {
 
   const variables = igcDataset?.variables || [];
   const numericVars = variables.filter((v) => v.is_numeric);
+  const categoricalVars = variables.filter((v) => !v.is_numeric);
 
   const formatParamLabel = (str: string) => {
     return str
@@ -500,137 +505,140 @@ export const InorganicDashboard: React.FC = () => {
 
       {/* Tab Contents */}
       <div className="space-y-6">
-          {/* TAB 1: Chart Builder */}
-          {activeTab === 'builder' && (
-            <Card
-              title="Interactive Geochemical Chart Builder"
-              className="p-6 border border-slate-200 bg-white rounded-2xl shadow-sm space-y-6"
-            >
-              {/* Builder Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50 border rounded-xl">
-                {/* X Axis select */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                    X-Axis Variable
-                  </label>
-                  <select
-                    value={xVar}
-                    onChange={(e) => setXVar(e.target.value)}
-                    className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
-                  >
-                    {numericVars.map((v) => (
-                      <option key={v.sql_column_name} value={v.sql_column_name}>
-                        {v.display_name} {v.display_unit ? `(${v.display_unit})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="metal lab Dataset Records"
+          data={records}
+          variables={variables}
+          isLoading={recordsLoading}
+        />
 
-                {/* Y Axis select */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                    Y-Axis Variable
-                  </label>
-                  <select
-                    value={yVar}
-                    onChange={(e) => setYVar(e.target.value)}
-                    className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
-                  >
-                    <option value="">None (Histogram / Distribution)</option>
-                    {numericVars.map((v) => (
-                      <option key={v.sql_column_name} value={v.sql_column_name}>
-                        {v.display_name} {v.display_unit ? `(${v.display_unit})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Color By select */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                    Color By / Legend
-                  </label>
-                  <select
-                    value={colorBy}
-                    onChange={(e) => setColorBy(e.target.value)}
-                    className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
-                  >
-                    <option value="">None</option>
-                    <option value="well_name">Well Name</option>
-                    <option value="formation">Formation</option>
-                    <option value="lithology">Lithology</option>
-                    <option value="material_type">Material Type</option>
-                  </select>
-                </div>
-
-                {/* Chart Type select */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                    Chart Layout
-                  </label>
-                  <select
-                    value={chartType}
-                    onChange={(e) => setChartType(e.target.value)}
-                    className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
-                  >
-                    <option value="scatter">Bivariate Scatter</option>
-                    <option value="line">Line Plot</option>
-                    <option value="histogram">Histogram / Frequency</option>
-                  </select>
-                </div>
+        {/* TAB 1: Chart Builder */}
+        {activeTab === 'builder' && (
+          <Card
+            title="Interactive Geochemical Chart Builder"
+            className="p-6 border border-slate-200 bg-white rounded-2xl shadow-sm space-y-6"
+          >
+            {/* Builder Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50 border rounded-xl">
+              {/* X Axis select */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  X-Axis Variable
+                </label>
+                <select
+                  value={xVar}
+                  onChange={(e) => setXVar(e.target.value)}
+                  className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
+                >
+                  {numericVars.map((v) => (
+                    <option key={v.sql_column_name} value={v.sql_column_name}>
+                      {v.display_name} {v.display_unit ? `(${v.display_unit})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Builder Plotly Display */}
-              {chartLoading ? (
-                <div className="h-80 flex items-center justify-center">
-                  <Spinner />
-                </div>
-              ) : (
-                <div className="h-[500px]">
-                  <DynamicPlotlyChart
-                    chartType={chartType}
-                    data={chartData || []}
-                    xLabel={xVar}
-                    yLabel={yVar}
-                    colorByLabel={colorBy || undefined}
-                    title={
-                      yVar
-                        ? `${
-                            variables.find((v) => v.sql_column_name === xVar)?.display_name || xVar
-                          } vs ${
-                            variables.find((v) => v.sql_column_name === yVar)?.display_name || yVar
-                          }`
-                        : `${
-                            variables.find((v) => v.sql_column_name === xVar)?.display_name || xVar
-                          } Distribution`
-                    }
-                  />
-                </div>
-              )}
-            </Card>
-          )}
-
-          {/* TAB 2: Scientific Plots Falling Back */}
-          {activeTab === 'scientific' && (
-            <Card className="p-6 bg-white border border-slate-200 shadow-sm rounded-2xl">
-              <div className="h-80 flex flex-col items-center justify-center text-slate-400 italic text-sm gap-2">
-                <Activity className="w-12 h-12 text-slate-300" />
-                <span>Geochemical classification plot for metal lab is under development.</span>
-                <span className="text-[11px] font-normal text-slate-400 not-italic">
-                  Please use the Chart Builder tab to plot variables in 2D scatter plots.
-                </span>
+              {/* Y Axis select */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  Y-Axis Variable
+                </label>
+                <select
+                  value={yVar}
+                  onChange={(e) => setYVar(e.target.value)}
+                  className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
+                >
+                  <option value="">None (Histogram)</option>
+                  {numericVars.map((v) => (
+                    <option key={v.sql_column_name} value={v.sql_column_name}>
+                      {v.display_name} {v.display_unit ? `(${v.display_unit})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </Card>
-          )}
 
-          {/* Records Table Section */}
-          <DashboardDatasetTable
-            title="metal lab Dataset Records"
-            data={records}
-            variables={variables}
-            isLoading={recordsLoading}
-          />
-        </div>
+              {/* Chart Type */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  Chart Type
+                </label>
+                <select
+                  value={chartType}
+                  onChange={(e) => setChartType(e.target.value)}
+                  className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
+                >
+                  <option value="scatter">2D Scatter Plot</option>
+                  <option value="line">Line Plot</option>
+                  <option value="bar">Bar Chart</option>
+                  <option value="depth_profile">Depth Profile Log</option>
+                  <option value="histogram">Histogram</option>
+                </select>
+              </div>
+
+              {/* Color By select */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  Group / Color By
+                </label>
+                <select
+                  value={colorBy}
+                  onChange={(e) => setColorBy(e.target.value)}
+                  className="w-full text-xs rounded-lg border-slate-250 bg-white py-1.5 px-3 focus:ring-1 focus:ring-indigo-600 font-semibold text-slate-700"
+                >
+                  <option value="">Default (Single Color)</option>
+                  {categoricalVars.map((v) => (
+                    <option key={v.sql_column_name} value={v.sql_column_name}>
+                      {v.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Plot Container */}
+            {recordsLoading ? (
+              <div className="h-96 flex items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            ) : (
+              <div className="p-2 border rounded-xl bg-slate-50/50">
+                <DynamicPlotlyChart
+                  chartType={chartType}
+                  data={records}
+                  xLabel={xVar}
+                  yLabel={yVar || undefined}
+                  colorByLabel={colorBy || undefined}
+                  title={
+                    yVar
+                      ? `${
+                          variables.find((v) => v.sql_column_name === xVar)?.display_name || xVar
+                        } vs ${
+                          variables.find((v) => v.sql_column_name === yVar)?.display_name || yVar
+                        }`
+                      : `${
+                          variables.find((v) => v.sql_column_name === xVar)?.display_name || xVar
+                        } Distribution`
+                  }
+                />
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* TAB 2: Scientific Plots Falling Back */}
+        {activeTab === 'scientific' && (
+          <Card className="p-6 bg-white border border-slate-200 shadow-sm rounded-2xl">
+            <div className="h-80 flex flex-col items-center justify-center text-slate-400 italic text-sm gap-2">
+              <Activity className="w-12 h-12 text-slate-300" />
+              <span>Geochemical classification plot for metal lab is under development.</span>
+              <span className="text-[11px] font-normal text-slate-400 not-italic">
+                Please use the Chart Builder tab to plot variables in 2D scatter plots.
+              </span>
+            </div>
+          </Card>
+        )}
       </div>
+    </div>
   );
 };

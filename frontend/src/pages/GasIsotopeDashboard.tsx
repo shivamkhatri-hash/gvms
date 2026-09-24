@@ -270,6 +270,16 @@ export const GasIsotopeDashboard: React.FC = () => {
     refetchGc();
   };
 
+  // Export report with direct on-screen Plotly graph snapshots
+  const handleExportPDF = async () => {
+    if (!selectedDatasetId) return;
+    try {
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    }
+  };
+
   // Helper to map index to exact marker styles matching the reference image
   const getBernardMarkerStyle = (index: number) => {
     const styles = [
@@ -969,8 +979,13 @@ export const GasIsotopeDashboard: React.FC = () => {
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      if (format === 'pdf') {
+        await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+      } else {
+        await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      }
     } catch (err) {
+      console.error('Report download failed:', err);
       alert('Report download failed.');
     }
   };
@@ -1269,6 +1284,13 @@ export const GasIsotopeDashboard: React.FC = () => {
 
       {/* Tab Contents */}
       <div className="space-y-6">
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title={`${datasetParam === 'csia_isotope' ? 'CSIA' : formatParamLabel(datasetParam)} Dataset Records`}
+          data={isotopeData}
+          variables={isotopeDataset?.variables}
+          isLoading={isotopeDataLoading}
+        />
 
           {/* TAB 1: Scientific Interpretation */}
           {activeTab === 'scientific' && (
@@ -1284,9 +1306,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                   {datasetParam === 'gas_isotope' ? (
                     <div className="space-y-6">
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Bernard Diagram (Genetic Classification of Gases)</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Bernard Diagram (Genetic Classification of Gases)</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -1296,6 +1318,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Bernard Diagram (Genetic Classification of Gases)"
                               data={[
                                 // Reference curve 1
                                 {
@@ -1663,9 +1686,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Isotopic Maturity Plot (Chung Classification)</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Isotopic Maturity Plot (Chung Classification)</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -1675,6 +1698,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Isotopic Maturity Plot (Chung Classification)"
                               data={[
                                 // 1. C1/C2 Maturation curve
                                 {
@@ -1858,9 +1882,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Isotopic Secondary Cracking Diagram</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Isotopic Secondary Cracking Diagram</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -1870,6 +1894,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Isotopic Secondary Cracking Diagram"
                               data={[
                                 // Background diagonal stripes for GAS cracking zone
                                 {
@@ -2087,9 +2112,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Gas Wetness (%C₂₊) vs δ¹³C₁ Classification Plot</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Gas Wetness (%C₂₊) vs δ¹³C₁ Classification Plot</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -2099,6 +2124,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Gas Wetness (%C₂₊) vs δ¹³C₁ Classification Plot"
                               data={[
                                 // 1. Big curved envelope boundary (Bacterial/mixed/mature thermogenic zones)
                                 {
@@ -2299,9 +2325,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Gas Component Isotope Profile Plot</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Gas Component Isotope Profile Plot</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -2311,6 +2337,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Gas Component Isotope Profile Plot"
                               data={profileTraces}
                               layout={applyGlobalLayoutDefaults({
                                 plot_bgcolor: 'white',
@@ -2384,9 +2411,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Type of Gas</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Type of Gas</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -2396,6 +2423,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Type of Gas"
                               data={[
                                 // Horizontal boundary lines
                                 {
@@ -2625,9 +2653,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Estimation of Maturity</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Estimation of Maturity</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -2637,6 +2665,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Estimation of Maturity"
                               data={[
                                 // Curve 1 (Kerogen Cracking Gas / upper curve)
                                 {
@@ -2855,9 +2884,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">CO2 vs Del C1</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">CO2 vs Del C1</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -2867,6 +2896,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="CO2 vs Del C1"
                               data={[
                                 // 1. Secondary Microbial Zone (grey rectangle)
                                 {
@@ -3101,9 +3131,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">CO2% vs Del CO2</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">CO2% vs Del CO2</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -3113,6 +3143,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="CO2% vs Del CO2"
                               data={[
                                 // Inorganic Band
                                 {
@@ -3254,9 +3285,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Schoell Wetness</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Schoell Wetness</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -3266,6 +3297,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Schoell Wetness"
                               data={[
                                 // Red Line 1 (Upper Horizontal Boundary)
                                 {
@@ -3502,9 +3534,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Modified Bernard</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Modified Bernard</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -3514,6 +3546,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Modified Bernard"
                               data={[
                                 // Line A (CO2 reduction left border)
                                 {
@@ -3691,9 +3724,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </Card>
 
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Modified Maturity Plot</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Modified Maturity Plot</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -3703,6 +3736,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Modified Maturity Plot"
                               data={[
                                 // Orange Trend Line
                                 {
@@ -3880,9 +3914,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                   ) : datasetParam === 'csia_isotope' ? (
                     <div className="space-y-6">
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">n-alkane Carbon Isotope Profile</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">n-alkane Carbon Isotope Profile</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[800px] w-full">
@@ -3892,15 +3926,11 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="n-alkane Carbon Isotope Profile"
                               data={csiaIsotopeTraces}
                               layout={applyGlobalLayoutDefaults({
                                 plot_bgcolor: 'white',
                                 paper_bgcolor: '#ffffff',
-                                title: {
-                                  text: '<b>n-alkane</b>',
-                                  font: { size: 14, color: 'black', family: 'sans-serif' },
-                                  y: 0.98
-                                },
                                 xaxis: {
                                   title: { text: '<b>n-alkane</b>', font: { size: 12, color: 'black', family: 'sans-serif' } },
                                   type: 'category',
@@ -3967,9 +3997,9 @@ export const GasIsotopeDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                       {/* GRAPH 1: Galimov / Sofer Plot */}
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Sofer Plot</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Sofer Plot</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[600px] w-full">
@@ -3979,6 +4009,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Sofer Plot"
                               data={oilGalimovTraces}
                               layout={applyGlobalLayoutDefaults({
                                 plot_bgcolor: 'white',
@@ -4083,9 +4114,9 @@ export const GasIsotopeDashboard: React.FC = () => {
 
                       {/* GRAPH 2: CV vs Pr/Ph */}
                       <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                        <div className="border-b border-slate-100 p-5 pb-3">
-                          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                            <h4 className="text-sm font-bold text-slate-800 font-sans">Pr/Ph vs Canonical Variable (CV)</h4>
+                        <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                            <h4 className="text-base font-bold text-slate-800 font-sans tracking-tight text-center">Pr/Ph vs Canonical Variable (CV)</h4>
                           </div>
                         </div>
                         <div className="p-0 h-[600px] w-full">
@@ -4095,6 +4126,7 @@ export const GasIsotopeDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <Plot
+                              title="Pr/Ph vs Canonical Variable (CV)"
                               data={oilCvPrPhTraces}
                               layout={applyGlobalLayoutDefaults({
                                 plot_bgcolor: 'white',
@@ -4220,13 +4252,6 @@ export const GasIsotopeDashboard: React.FC = () => {
                       </div>
                     </Card>
                   )}
-
-                  <DashboardDatasetTable
-                    title={`${datasetParam === 'csia_isotope' ? 'CSIA' : formatParamLabel(datasetParam)} Dataset Records`}
-                    data={isotopeData}
-                    variables={isotopeDataset?.variables}
-                    isLoading={isotopeDataLoading}
-                  />
                 </div>
               )}
             </div>

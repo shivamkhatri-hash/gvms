@@ -80,14 +80,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES=480
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
 # =========================================================================
-# Database Settings (Targeting Pre-existing Database)
+# Database Settings
 # =========================================================================
-POSTGRES_SERVER=127.0.0.1                     # Pre-existing database host IP
-POSTGRES_PORT=5432                            # Database port
-POSTGRES_DB=your_preexisting_db               # Name of the database
-POSTGRES_USER=your_username                   # Database username
-POSTGRES_PASSWORD=your_password               # Database password
-DATABASE_URL=postgresql://your_username:your_password@127.0.0.1:5432/your_preexisting_db
+# Provider selection: "oracle", "sqlite", or "postgres"
+DATABASE_PROVIDER=oracle
+
+# Oracle Database Settings (Targeting ONGC Regional Instances)
+ORACLE_USER=PRJDDN
+ORACLE_PASSWORD=prjddn
+ORACLE_HOST=10.203.10.44
+ORACLE_PORT=1521
+ORACLE_SERVICE_NAME=EPIDDN
+
+# PostgreSQL Database Settings (Alternative)
+POSTGRES_SERVER=127.0.0.1
+POSTGRES_PORT=5432
+POSTGRES_DB=ongc_lab
+POSTGRES_USER=ongc_admin
+POSTGRES_PASSWORD=ONGC_Lab_Secure_Pass2026!
+DATABASE_URL=postgresql://ongc_admin:ONGC_Lab_Secure_Pass2026!@127.0.0.1:5432/ongc_lab
+
 
 # =========================================================================
 # Metabase BI Analytics Config

@@ -562,11 +562,11 @@ export const SteraneDashboard: React.FC = () => {
     });
   };
 
-  // Export report
+  // Export report with direct on-screen Plotly graph snapshots
   const handleExportPDF = async () => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport('pdf', selectedDatasetId, serializedFilters);
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
     } catch (err) {
       console.error('Failed to export PDF:', err);
     }
@@ -811,6 +811,14 @@ export const SteraneDashboard: React.FC = () => {
         </div>
 
         {/* Tab Contents */}
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Sterane Biomarker Dataset Records"
+          data={steraneData}
+          variables={steraneDataset?.variables}
+          isLoading={steraneDataLoading}
+        />
+
         {activeTab === 'scientific' && (
           <div className="space-y-6">
             {steraneDataLoading ? (
@@ -829,13 +837,14 @@ export const SteraneDashboard: React.FC = () => {
               <div className="space-y-6">
                 {/* Graph 11: C27-C29 Sterane Ternary Plot */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">C27-C29 STERANE TERNARY PLOT</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">C27-C29 STERANE TERNARY PLOT</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
                     <Plot
+                      title="C27-C29 STERANE TERNARY PLOT"
                       data={renderTernaryTraces(steraneData)}
                       layout={{
                         title: {
@@ -926,13 +935,14 @@ export const SteraneDashboard: React.FC = () => {
 
                 {/* Graph 12: Sterane Maturity Plot */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">C29 STERANE MATURITY PLOT</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">C29 STERANE MATURITY PLOT</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
                     <Plot
+                      title="C29 STERANE MATURITY PLOT"
                       data={renderMaturityTraces(steraneData)}
                       layout={{
                         ...getCommonLayout(
@@ -1064,13 +1074,14 @@ export const SteraneDashboard: React.FC = () => {
 
                 {/* Graph 13: Sterane vs Pr/Ph */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">STERANE C27R/(C27R+C29R) vs PR/PH</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">STERANE C27R/(C27R+C29R) vs PR/PH</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
                     <Plot
+                      title="STERANE C27R/(C27R+C29R) vs PR/PH"
                       data={renderSteranePrPhTraces(combinedSteranePrPhData)}
                       layout={{
                         ...getCommonLayout(
@@ -1144,13 +1155,6 @@ export const SteraneDashboard: React.FC = () => {
                     />
                   </div>
                 </Card>
-
-                <DashboardDatasetTable
-                  title="Sterane Biomarker Dataset Records"
-                  data={steraneData}
-                  variables={steraneDataset?.variables}
-                  isLoading={steraneDataLoading}
-                />
               </div>
             )}
           </div>

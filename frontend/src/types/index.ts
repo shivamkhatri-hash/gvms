@@ -6,6 +6,8 @@ export interface User {
   full_name: string;
   role: Role;
   is_active: boolean;
+  department?: string;
+  assigned_tasks?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -109,12 +111,30 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface InfrastructureNode {
+  name: string;
+  type: 'database' | 'backend' | 'metabase' | 'storage';
+  provider?: string;
+  host?: string;
+  port?: number | string;
+  status: 'healthy' | 'degraded' | 'offline' | 'checking';
+  latency_ms?: number | null;
+  details?: string;
+  version?: string;
+}
+
 export interface SystemHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp?: string;
   services: {
     backend: string;
     database: string;
     metabase: string;
+  };
+  nodes?: {
+    database: InfrastructureNode;
+    backend: InfrastructureNode;
+    metabase: InfrastructureNode;
   };
   metabase: {
     status: string;
@@ -122,5 +142,10 @@ export interface SystemHealth {
     version?: string;
     healthy: boolean;
     error?: string;
+  };
+  storage?: {
+    disk_total_gb: number;
+    disk_free_gb: number;
+    usage_percent: number;
   };
 }

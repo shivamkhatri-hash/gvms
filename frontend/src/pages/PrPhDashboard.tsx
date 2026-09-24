@@ -633,11 +633,11 @@ export const PrPhDashboard: React.FC = () => {
     });
   };
 
-  // Export report
+  // Export report with direct on-screen Plotly graph snapshots
   const handleExportPDF = async () => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport('pdf', selectedDatasetId, serializedFilters);
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
     } catch (err) {
       console.error('Failed to export PDF:', err);
     }
@@ -882,6 +882,14 @@ export const PrPhDashboard: React.FC = () => {
         </div>
 
         {/* Tab Contents */}
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Pristane/Phytane Biomarker Dataset Records"
+          data={prPhData}
+          variables={prPhDataset?.variables}
+          isLoading={prPhDataLoading}
+        />
+
         {activeTab === 'scientific' && (
           <div className="space-y-6">
             {prPhDataLoading ? (
@@ -900,9 +908,9 @@ export const PrPhDashboard: React.FC = () => {
               <div className="space-y-6">
                 {/* Joined Graph: Pr/Ph vs Sterane C27R/(C27R+C29R) */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">Pristane/Phytane vs Sterane Ratio Source-Rock Facies</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">Pristane/Phytane vs Sterane Ratio Source-Rock Facies</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
@@ -912,6 +920,7 @@ export const PrPhDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <Plot
+                        title="Pristane/Phytane vs Sterane Ratio Source-Rock Facies"
                         data={renderPrPhSteraneTraces(prPhData || [], steraneData || [])}
                         layout={{
                           ...getCommonLayout(
@@ -1036,9 +1045,9 @@ export const PrPhDashboard: React.FC = () => {
 
                 {/* Joined Graph 2: DBT/Phe vs Pr/Ph */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">DBT/Phe vs Pr/Ph Plot</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">DBT/Phe vs Pr/Ph Plot</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[600px]">
@@ -1048,6 +1057,7 @@ export const PrPhDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <Plot
+                        title="DBT/Phe vs Pr/Ph Plot"
                         data={renderAromaticPrPhTraces(prPhData || [], aromaticData || [])}
                         layout={{
                           ...getCommonLayout(
@@ -1165,13 +1175,6 @@ export const PrPhDashboard: React.FC = () => {
                     )}
                   </div>
                 </Card>
-
-                <DashboardDatasetTable
-                  title="Pristane/Phytane Biomarker Dataset Records"
-                  data={prPhData}
-                  variables={prPhDataset?.variables}
-                  isLoading={prPhDataLoading}
-                />
               </div>
             )}
           </div>

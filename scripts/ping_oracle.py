@@ -15,9 +15,14 @@ base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(base_dir)
 sys.path.append(os.path.join(base_dir, "backend"))
 
-venv_site_packages = os.path.join(base_dir, ".venv", "Lib", "site-packages")
-if os.path.exists(venv_site_packages):
-    sys.path.insert(0, venv_site_packages)
+for venv_path in [
+    os.path.join(base_dir, "backend", "venv", "Lib", "site-packages"),
+    os.path.join(base_dir, ".venv", "Lib", "site-packages"),
+    os.path.join(base_dir, "venv", "Lib", "site-packages"),
+]:
+    if os.path.exists(venv_path):
+        sys.path.insert(0, venv_path)
+
 
 # Try loading python-dotenv if present
 try:
@@ -90,13 +95,29 @@ def ping_oracle(host: str = None, port: int = None, user: str = None, password: 
     try:
         start_time = time.time()
         if driver_type in ("oracledb", "cx_Oracle"):
+            print(f"    Connecting using driver '{driver_type}'...")
+            
+            # Use direct parameters or DSN with connect timeout
             if sid:
-                dsn = oracledb.maketdsn(host, port, sid=sid)
+                dsn = oracledb.makedsn(host, port, sid=sid)
+                print(f"    DSN: {dsn}")
+                connection = oracledb.connect(
+                    user=user,
+                    password=password,
+                    dsn=dsn,
+                    tcp_connect_timeout=10
+                )
             else:
-                dsn = f"{host}:{port}/{service_name}"
+                print(f"    Host: {host}:{port}, Service: {service_name}, User: {user}")
+                connection = oracledb.connect(
+                    user=user,
+                    password=password,
+                    host=host,
+                    port=port,
+                    service_name=service_name,
+                    tcp_connect_timeout=10
+                )
                 
-            print(f"    Connecting with DSN ({driver_type}): {dsn} ...")
-            connection = oracledb.connect(user=user, password=password, dsn=dsn)
             query_start = time.time()
             cursor = connection.cursor()
             cursor.execute("SELECT 1 FROM DUAL")

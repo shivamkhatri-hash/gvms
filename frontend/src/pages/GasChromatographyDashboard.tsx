@@ -237,8 +237,13 @@ export const GasChromatographyDashboard: React.FC = () => {
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      if (format === 'pdf') {
+        await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+      } else {
+        await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
+      }
     } catch (err) {
+      console.error('Report download failed:', err);
       alert('Report download failed.');
     }
   };
@@ -527,46 +532,49 @@ export const GasChromatographyDashboard: React.FC = () => {
 
       {/* Tab Contents */}
       <div className="space-y-6">
-          {activeTab === 'scientific' && (
-            <div className="space-y-8">
-              {gcDataLoading ? (
-                <div className="h-96 flex items-center justify-center">
-                  <Spinner size="lg" />
-                </div>
-              ) : !gcData || gcData.length === 0 ? (
-                <div className="h-96 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-2xl bg-white">
-                  No sample data found. Please ingest Gas Chromatography data.
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                    <div className="border-b border-slate-100 p-5 pb-3">
-                      <h4 className="text-sm font-bold text-slate-800">Pristane/nC17 vs Phytane/nC18</h4>
-                    </div>
-                    <div className="p-5">
-                      <DynamicPlotlyChart
-                        chartType="pr_nc17_vs_ph_nc18"
-                        data={prPhCrossPoints}
-                        xLabel="Phytane / nC18"
-                        yLabel="Pristane / nC17"
-                        colorByLabel="Well No."
-                        title="Pristane/nC17 vs Phytane/nC18"
-                        onPointClick={setSelectedPoint}
-                        height="h-[850px]"
-                      />
-                    </div>
-                  </Card>
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Gas Chromatography Dataset Records"
+          data={gcData}
+          variables={gcDataset?.variables}
+          isLoading={gcDataLoading}
+        />
 
-                  <DashboardDatasetTable
-                    title="Gas Chromatography Dataset Records"
-                    data={gcData}
-                    variables={gcDataset?.variables}
-                    isLoading={gcDataLoading}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+        {activeTab === 'scientific' && (
+          <div className="space-y-8">
+            {gcDataLoading ? (
+              <div className="h-96 flex items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            ) : !gcData || gcData.length === 0 ? (
+              <div className="h-96 flex items-center justify-center text-slate-400 text-sm border border-dashed rounded-2xl bg-white">
+                No sample data found. Please ingest Gas Chromatography data.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">Pristane/nC17 vs Phytane/nC18</h4>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <DynamicPlotlyChart
+                      chartType="pr_nc17_vs_ph_nc18"
+                      data={prPhCrossPoints}
+                      xLabel="Phytane / nC18"
+                      yLabel="Pristane / nC17"
+                      colorByLabel="Well No."
+                      title=""
+                      onPointClick={setSelectedPoint}
+                      height="h-[850px]"
+                    />
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
 
           {activeTab === 'builder' && (
             <Card

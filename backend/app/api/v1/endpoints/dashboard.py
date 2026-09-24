@@ -53,9 +53,11 @@ def build_where_clause(
 
     # Process all query parameters
     for key, val in query_params.items():
+        if not isinstance(val, (str, int, float, list, tuple)):
+            continue
         if key in ["dataset_id", "x_axis", "y_axis", "z_axis", "chart_type", "color_by", "well_name", "sample_type", "skip", "limit", "sort_by", "sort_desc", "search"]:
             continue
-        if val is None or str(val).strip() == "" or val == "ALL":
+        if val is None or str(val).strip() == "" or str(val) == "ALL":
             continue
 
         # Check if it's a dynamic range filter (e.g. column_min or column_max)
@@ -73,66 +75,100 @@ def build_where_clause(
 
         if col_def:
             col = col_def.sql_column_name
-            col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
+            is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
+            col_ref = f'"{col.upper()}"' if is_oracle else f'"{col}"'
             if is_min or is_max:
                 try:
                     val_float = float(val)
                     op = ">=" if is_min else "<="
                     param_name = f"{base_key}_min_val" if is_min else f"{base_key}_max_val"
                     if is_custom:
-                        where_clauses.append(f'{col_ref} {op} :{param_name}')
+                        col_expr = f"TO_NUMBER({col_ref} DEFAULT NULL ON CONVERSION ERROR)" if is_oracle else col_ref
+                        where_clauses.append(f'{col_expr} {op} :{param_name}')
                     else:
                         where_clauses.append(f"CAST(data->>'{col}' AS DOUBLE PRECISION) {op} :{param_name}")
                     params[param_name] = val_float
-                except ValueError:
+                except (ValueError, TypeError):
                     pass
             else:
                 # Categorical column filter
-                # Multi-select (comma separated string)
-                if isinstance(val, str) and "," in val:
-                    vals_list = [v.strip() for v in val.split(",") if v.strip()]
+                # Multi-select (comma separated string or list/tuple)
+                if isinstance(val, (list, tuple)) or (isinstance(val, str) and "," in val):
+                    if isinstance(val, str):
+                        vals_list = [v.strip() for v in val.split(",") if v.strip()]
+                    else:
+                        vals_list = [str(v).strip() for v in val if str(v).strip()]
                     if vals_list:
-                        param_name = f"{key}_list"
+                        bind_names = []
+                        for i, item in enumerate(vals_list):
+                            b_name = f"{key}_{i}"
+                            bind_names.append(f":{b_name}")
+                            params[b_name] = item
+                        in_clause = ", ".join(bind_names)
                         if is_custom:
-                            where_clauses.append(f'{col_ref} IN :{param_name}')
+                            where_clauses.append(f'{col_ref} IN ({in_clause})')
                         else:
-                            where_clauses.append(f"data->>'{col}' IN :{param_name}")
-                        params[param_name] = tuple(vals_list)
+                            where_clauses.append(f"data->>'{col}' IN ({in_clause})")
                 else:
                     if is_custom:
                         where_clauses.append(f'{col_ref} = :{key}')
                     else:
                         where_clauses.append(f"data->>'{col}' = :{key}")
-                    params[key] = val
+                    params[key] = str(val)
 
     # Backward compatibility fallback for explicit parameters: well_name and sample_type
     well_val = query_params.get("well_name")
-    if well_val and well_val != "ALL" and "well_name" not in params:
+    if well_val and str(well_val).strip() and str(well_val) != "ALL" and "well_name" not in params:
         col = dataset.primary_well_column or "well_name"
         for k, v in var_map.items():
-            if k.lower() in ["well_name", "borehole_name"]:
+            if k.lower() in ["well_name", "borehole_name", "name", "ubhi"]:
                 col = v.sql_column_name
                 break
         col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
-        if is_custom:
-            where_clauses.append(f'{col_ref} = :well_name')
+        if isinstance(well_val, str) and "," in well_val:
+            w_list = [w.strip() for w in well_val.split(",") if w.strip()]
+            b_names = []
+            for i, w in enumerate(w_list):
+                b_name = f"well_fb_{i}"
+                b_names.append(f":{b_name}")
+                params[b_name] = w
+            if is_custom:
+                where_clauses.append(f'{col_ref} IN ({", ".join(b_names)})')
+            else:
+                where_clauses.append(f"data->>'{col}' IN ({", ".join(b_names)})")
         else:
-            where_clauses.append(f"data->>'{col}' = :well_name")
-        params["well_name"] = well_val
+            if is_custom:
+                where_clauses.append(f'{col_ref} = :well_name')
+            else:
+                where_clauses.append(f"data->>'{col}' = :well_name")
+            params["well_name"] = str(well_val).strip()
 
     st_val = query_params.get("sample_type")
-    if st_val and st_val != "ALL" and "sample_type" not in params:
+    if st_val and str(st_val).strip() and str(st_val) != "ALL" and "sample_type" not in params:
         col = "sample_type"
         for v in var_map.values():
             if not v.is_numeric and v.sql_column_name.lower() in ["sample_type", "lithology"]:
                 col = v.sql_column_name
                 break
         col_ref = f'"{col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{col}"'
-        if is_custom:
-            where_clauses.append(f'{col_ref} = :sample_type')
+        if isinstance(st_val, str) and "," in st_val:
+            s_list = [s.strip() for s in st_val.split(",") if s.strip()]
+            b_names = []
+            for i, s in enumerate(s_list):
+                b_name = f"st_fb_{i}"
+                b_names.append(f":{b_name}")
+                params[b_name] = s
+            if is_custom:
+                where_clauses.append(f'{col_ref} IN ({", ".join(b_names)})')
+            else:
+                where_clauses.append(f"data->>'{col}' IN ({", ".join(b_names)})")
         else:
-            where_clauses.append(f"data->>'{col}' = :sample_type")
-        params["sample_type"] = st_val
+            if is_custom:
+                where_clauses.append(f'{col_ref} = :sample_type')
+            else:
+                where_clauses.append(f"data->>'{col}' = :sample_type")
+            params["sample_type"] = str(st_val).strip()
+
 
     # Backward compatibility fallback for explicit depth_min and depth_max
     depth_col = dataset.primary_depth_column or "depth_from"
@@ -141,17 +177,19 @@ def build_where_clause(
             depth_col = v.sql_column_name
             break
             
-    depth_col_ref = f'"{depth_col.upper()}"' if settings.DATABASE_PROVIDER.lower() == "oracle" else f'"{depth_col}"'
+    is_oracle = settings.DATABASE_PROVIDER.lower() == "oracle"
+    depth_col_ref = f'"{depth_col.upper()}"' if is_oracle else f'"{depth_col}"'
+    depth_num_expr = f"TO_NUMBER({depth_col_ref} DEFAULT NULL ON CONVERSION ERROR)" if is_oracle else depth_col_ref
     depth_min = query_params.get("depth_min")
     if depth_min is not None and str(depth_min).strip() != "" and "depth_min" not in params:
         try:
             float_min = float(depth_min)
             if is_custom:
-                where_clauses.append(f'{depth_col_ref} >= :depth_min')
+                where_clauses.append(f'{depth_num_expr} >= :depth_min')
             else:
                 where_clauses.append(f"CAST(data->>'{depth_col}' AS DOUBLE PRECISION) >= :depth_min")
             params["depth_min"] = float_min
-        except ValueError:
+        except (ValueError, TypeError):
             pass
             
     depth_max = query_params.get("depth_max")
@@ -159,11 +197,11 @@ def build_where_clause(
         try:
             float_max = float(depth_max)
             if is_custom:
-                where_clauses.append(f'{depth_col_ref} <= :depth_max')
+                where_clauses.append(f'{depth_num_expr} <= :depth_max')
             else:
                 where_clauses.append(f"CAST(data->>'{depth_col}' AS DOUBLE PRECISION) <= :depth_max")
             params["depth_max"] = float_max
-        except ValueError:
+        except (ValueError, TypeError):
             pass
 
     if not where_clauses:
@@ -281,11 +319,12 @@ def get_dashboard_summary(
             continue
         if v.is_numeric:
             if is_custom:
-                select_fields.append(f'AVG({col_ref}) AS "avg_{col.lower()}"')
-                select_fields.append(f'MIN({col_ref}) AS "min_{col.lower()}"')
-                select_fields.append(f'MAX({col_ref}) AS "max_{col.lower()}"')
-                select_fields.append(f'STDDEV({col_ref}) AS "stddev_{col.lower()}"')
-                select_fields.append(f'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {col_ref}) AS "median_{col.lower()}"')
+                num_expr = f'TO_NUMBER({col_ref} DEFAULT NULL ON CONVERSION ERROR)' if is_oracle else col_ref
+                select_fields.append(f'AVG({num_expr}) AS "avg_{col.lower()}"')
+                select_fields.append(f'MIN({num_expr}) AS "min_{col.lower()}"')
+                select_fields.append(f'MAX({num_expr}) AS "max_{col.lower()}"')
+                select_fields.append(f'STDDEV({num_expr}) AS "stddev_{col.lower()}"')
+                select_fields.append(f'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY {num_expr}) AS "median_{col.lower()}"')
             else:
                 select_fields.append(f"AVG(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"avg_{col.lower()}\"")
                 select_fields.append(f"MIN(CAST(data->>'{col}' AS DOUBLE PRECISION)) AS \"min_{col.lower()}\"")
@@ -375,19 +414,21 @@ def get_dashboard_summary(
                 if db_columns and c not in db_columns and c.upper() not in db_columns and c.lower() not in {c.lower() for c in db_columns}:
                     continue
                 if is_custom:
-                    agg_fields.append(f'ROUND(AVG({c_ref}), 2) AS "avg_{c.lower()}"')
+                    num_expr = f'TO_NUMBER({c_ref} DEFAULT NULL ON CONVERSION ERROR)' if is_oracle else c_ref
+                    agg_fields.append(f'ROUND(AVG({num_expr}), 2) AS "avg_{c.lower()}"')
                 else:
                     agg_fields.append(f"ROUND(AVG(CAST(data->>'{c}' AS DOUBLE PRECISION)), 2) AS \"avg_{c.lower()}\"")
         
         agg_str = ", " + ", ".join(agg_fields) if agg_fields else ""
         
         if is_custom:
+            depth_num_expr = f'TO_NUMBER({depth_col_ref} DEFAULT NULL ON CONVERSION ERROR)' if is_oracle else depth_col_ref
             well_summary_q = f"""
                 SELECT 
                     {well_col_ref} AS "well_name",
                     COUNT(*) AS "samples_count",
-                    MIN({depth_col_ref}) AS "min_depth",
-                    MAX({depth_col_ref}) AS "max_depth"
+                    MIN({depth_num_expr}) AS "min_depth",
+                    MAX({depth_num_expr}) AS "max_depth"
                     {agg_str}
                 FROM {table_name}
                 WHERE {where_str}
@@ -765,10 +806,11 @@ def get_scientific_plots(
     cols_to_select = []
     if is_custom:
         allowed_cols = None
-        if dataset.name == "cutting_source_rock":
-            allowed_cols = {"id", "toc", "s2", "hi", "tmax", "lithology", "layer_name", "top_depth", "cuttings_sample_id", "borehole_name", "ubhi"}
-        elif dataset.name == "core_source_rock":
-            allowed_cols = {"id", "toc", "s2", "hi", "tmax", "lithology", "layer_name", "sample_top", "core_sample_id", "borehole_name", "ubhi"}
+        ds_name_lower = dataset.name.lower()
+        if "cutting" in ds_name_lower:
+            allowed_cols = {"id", "toc", "s1", "s2", "s3", "hi", "oi", "tmax", "pi", "vro", "osi", "lithology", "layer_name", "top_depth", "bottom_depth", "cuttings_sample_id", "borehole_name", "ubhi"}
+        elif "core" in ds_name_lower:
+            allowed_cols = {"id", "toc", "s1", "s2", "s3", "hi", "oi", "tmax", "pi", "vro", "osi", "lithology", "layer_name", "sample_top", "sample_bottom", "core_sample_id", "borehole_name", "ubhi"}
 
         for v in variables:
             col = v.sql_column_name

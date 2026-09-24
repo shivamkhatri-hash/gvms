@@ -10,6 +10,15 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase_db')\gexec
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Ensure sequences exist for ORM compatibility
+CREATE SEQUENCE IF NOT EXISTS upload_log_seq;
+CREATE SEQUENCE IF NOT EXISTS audit_log_seq;
+CREATE SEQUENCE IF NOT EXISTS dataset_registry_seq;
+CREATE SEQUENCE IF NOT EXISTS dataset_version_seq;
+CREATE SEQUENCE IF NOT EXISTS generic_record_seq;
+CREATE SEQUENCE IF NOT EXISTS variable_registry_seq;
+CREATE SEQUENCE IF NOT EXISTS version_record_seq;
+
 -- Table 1: users
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -91,7 +100,7 @@ CREATE TABLE IF NOT EXISTS dataset_registry (
     mapping_config JSONB NOT NULL DEFAULT '{}',
     graph_config JSONB NOT NULL DEFAULT '[]',
     filter_config JSONB NOT NULL DEFAULT '[]',
-    required_columns TEXT[] NOT NULL DEFAULT '{}',
+    required_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
     primary_depth_column VARCHAR(100),
     primary_well_column VARCHAR(100),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -148,6 +157,11 @@ CREATE TABLE IF NOT EXISTS variable_registry (
     description TEXT,
     validation_rule TEXT,
     category VARCHAR(100),
+    synonyms JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_required BOOLEAN NOT NULL DEFAULT FALSE,
+    is_nullable BOOLEAN NOT NULL DEFAULT TRUE,
+    is_calculated BOOLEAN NOT NULL DEFAULT FALSE,
+    formula VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(dataset_id, sql_column_name)
@@ -686,7 +700,7 @@ VALUES (
         {"name": "well_name", "type": "select", "label": "Well Name"},
         {"name": "sample_type", "type": "select", "label": "Lithology"}
     ]'::jsonb,
-    ARRAY['well_name', 'depth_from', 'toc', 's2'],
+    '["well_name", "depth_from", "toc", "s2"]'::jsonb,
     'depth_from',
     'well_name'
 ) ON CONFLICT (name) DO NOTHING;

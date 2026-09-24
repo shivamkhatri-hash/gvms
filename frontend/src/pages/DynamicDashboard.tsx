@@ -29,6 +29,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { formatNumber } from '../utils/formatters';
 import { DynamicPlotlyChart } from '../components/charts/DynamicPlotlyChart';
+import { DashboardDatasetTable } from '../components/common/DashboardDatasetTable';
 import api from '../services/api';
 
 interface VariableDef {
@@ -1030,6 +1031,14 @@ export const DynamicDashboard: React.FC = () => {
         )}
       </Card>
 
+      {/* Dataset Records Table (Default Collapsed at Top) */}
+      <DashboardDatasetTable
+        title={`${activeDataset?.display_name || 'Dynamic Dataset'} Records`}
+        data={scientificRecords || []}
+        variables={activeDataset?.variables}
+        isLoading={recordsLoading}
+      />
+
       {/* ── SCIENTIFIC VISUALIZATION PLOT ── */}
       <Card noPadding className="border-slate-200/90 shadow-md min-h-[480px]">
         {recordsLoading || (isCrossDataset && crossPlotLoading) ? (
@@ -1049,10 +1058,12 @@ export const DynamicDashboard: React.FC = () => {
           </div>
         ) : plotToRender ? (
           <div className="p-6">
-            <div className="border-b border-slate-100 pb-3 mb-5">
-              <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">
-                {plotToRender.title}
-              </h3>
+            <div className="border-b border-slate-100 pb-3 mb-5 flex justify-center text-center">
+              <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider text-center">
+                  {plotToRender.title}
+                </h3>
+              </div>
             </div>
             <div className="h-[500px]">
               <DynamicPlotlyChart
@@ -1061,7 +1072,7 @@ export const DynamicDashboard: React.FC = () => {
                 xLabel={plotToRender.xLabel}
                 yLabel={plotToRender.yLabel}
                 colorByLabel={colorByCustom || undefined}
-                title={plotToRender.title}
+                title=""
               />
             </div>
           </div>

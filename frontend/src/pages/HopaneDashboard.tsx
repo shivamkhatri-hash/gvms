@@ -235,11 +235,11 @@ export const HopaneDashboard: React.FC = () => {
     refetchSterane();
   };
 
-  // Export report
+  // Export report with direct on-screen Plotly graph snapshots
   const handleExportPDF = async () => {
     if (!selectedDatasetId) return;
     try {
-      await reportsService.downloadReport('pdf', selectedDatasetId, serializedFilters);
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
     } catch (err) {
       console.error('Failed to export PDF:', err);
     }
@@ -890,6 +890,14 @@ export const HopaneDashboard: React.FC = () => {
         </div>
 
         {/* Tab Contents */}
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Hopane Biomarker Dataset Records"
+          data={hopaneData}
+          variables={hopaneDataset?.variables}
+          isLoading={hopaneDataLoading}
+        />
+
         {activeTab === 'scientific' && (
           <div className="space-y-6 flex flex-col">
             {hopaneDataLoading ? (
@@ -907,13 +915,14 @@ export const HopaneDashboard: React.FC = () => {
                 {/* Graph 1: RADAR CHART */}
                 {/* Graph 1a: RADAR CHART */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">Homohopane Distribution (Radar Plot)</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">Homohopane Distribution (Radar Plot)</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
                     <Plot
+                      title="Homohopane Distribution (Radar Plot)"
                       data={renderHomohopanesRadarTraces(hopaneData)}
                       layout={{
                         plot_bgcolor: 'white',
@@ -955,13 +964,14 @@ export const HopaneDashboard: React.FC = () => {
 
                 {/* Graph 1b: LINE PLOT */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">Homohopane Distribution (Line Plot)</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">Homohopane Distribution (Line Plot)</h4>
                     </div>
                   </div>
                   <div className="p-5 w-full h-[550px]">
                     <Plot
+                      title="Homohopane Distribution (Line Plot)"
                       data={renderHomohopanesHHPlotTraces(hopaneData)}
                       layout={{
                         plot_bgcolor: 'white',
@@ -1008,13 +1018,14 @@ export const HopaneDashboard: React.FC = () => {
 
                 {/* Graph 2: DIAHOPANE INDEX vs C29H/C30H */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">DIAHOPANE INDEX vs C29H/C30H</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">DIAHOPANE INDEX vs C29H/C30H</h4>
                     </div>
                   </div>
                   <div className="p-5 w-full h-[550px]">
                     <Plot
+                      title="DIAHOPANE INDEX vs C29H/C30H"
                       data={renderDiaHTraces(hopaneData)}
                       layout={{
                         ...getCommonLayout(
@@ -1067,13 +1078,14 @@ export const HopaneDashboard: React.FC = () => {
 
                 {/* Graph 3: C35S/C34S vs C29H/C30H */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">C35S/C34S vs C29H/C30H</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">C35S/C34S vs C29H/C30H</h4>
                     </div>
                   </div>
                   <div className="p-5 w-full h-[550px]">
                     <Plot
+                      title="C35S/C34S vs C29H/C30H"
                       data={render3534HHTraces(hopaneData)}
                       layout={{
                         ...getCommonLayout(
@@ -1155,13 +1167,14 @@ export const HopaneDashboard: React.FC = () => {
 
                 {/* Graph 4: OLEANANE INDEX & BCD INDEX */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">OLEANANE INDEX & BCD INDEX</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">OLEANANE INDEX & BCD INDEX</h4>
                     </div>
                   </div>
                   <div className="p-5 w-full h-[550px]">
                     <Plot
+                      title="OLEANANE INDEX & BCD INDEX"
                       data={renderOleananeBCDTraces(hopaneData)}
                       layout={{
                         ...getCommonLayout(
@@ -1222,9 +1235,9 @@ export const HopaneDashboard: React.FC = () => {
 
                 {/* Graph 5: C29H/C30H vs C29 DIASTERANE INDEX */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">C29H/C30H vs C29 DIASTERANE INDEX</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">C29H/C30H vs C29 DIASTERANE INDEX</h4>
                     </div>
                   </div>
                   <div className="p-5 w-full h-[550px]">
@@ -1234,6 +1247,7 @@ export const HopaneDashboard: React.FC = () => {
                       </div>
                     ) : (
                       <Plot
+                        title="C29H/C30H vs C29 DIASTERANE INDEX"
                         data={render29HDiasteraneTraces(hopaneData || [], steraneData || [])}
                         layout={{
                           ...getCommonLayout(
@@ -1284,13 +1298,6 @@ export const HopaneDashboard: React.FC = () => {
                     )}
                   </div>
                 </Card>
-
-                <DashboardDatasetTable
-                  title="Hopane Biomarker Dataset Records"
-                  data={hopaneData}
-                  variables={hopaneDataset?.variables}
-                  isLoading={hopaneDataLoading}
-                />
               </div>
             )}
           </div>

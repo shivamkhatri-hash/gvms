@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3005,
+    port: 3008,
     host: '0.0.0.0',
     proxy: {
       '/api': {
@@ -20,7 +20,7 @@ export default defineConfig({
     },
   },
   preview: {
-    port: 3005,
+    port: 3008,
     host: '0.0.0.0',
     proxy: {
       '/api': {

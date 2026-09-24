@@ -1175,7 +1175,7 @@ class CSVProcessor:
                     "DL_BIOMARKER_PR_PH_VW": "dl_biomarker_pr_ph_",
                     "DL_ISOTOPE_GAS_VW": "dl_isotope_gas_",
                     "DL_ISOTOPE_OIL_VW": "dl_isotope_oil",
-                    "DL_ISOTOPE_CSIA_VW": "dl_isotope_csia",
+                    "DL_ISOTOPE_CSIA_VW": "dl_isotope_csia_",
                     "DL_IGC_TRACE_METAL_VW": "dl_igc_trace_metal_",
                     "DL_MICROBIOLOGY_DATA_VW": "dl_microbiology_data_"
                 }

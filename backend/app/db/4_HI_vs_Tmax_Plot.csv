@@ -1,0 +1,506 @@
+﻿Sample Type,depth,,Formation,HI,Tmax
+cuttings,200,,Shumar,140,354
+cuttings,210,,Shumar,33,351
+cuttings,220,,Shumar,133,485
+cuttings,230,,Shumar,50,467
+cuttings,240,,Shumar,100,312
+cuttings,250,,Shumar,50,485
+cuttings,260,,Shumar,150,484
+cuttings,270,,Shumar,100,486
+cuttings,280,,Shumar,100,353
+cuttings,290,,Shumar,33,486
+cuttings,300,,Shumar,44,486
+cuttings,310,,Shumar,133,485
+cuttings,320,,Shumar,25,486
+cuttings,330,,Shumar,40,485
+cuttings,340,,Shumar,100,334
+cuttings,350,,Shumar,125,420
+cuttings,360,,Shumar,200,373
+cuttings,370,,Shumar,60,484
+cuttings,380,,Shumar,229,423
+cuttings,390,,Shumar,165,423
+cuttings,400,,Bandah,229,426
+cuttings,410,,Bandah,100,415
+cuttings,420,,Bandah,188,419
+cuttings,430,,Bandah,174,421
+cuttings,440,,Bandah,100,421
+cuttings,450,,Bandah,155,424
+cuttings,460,,Bandah,175,426
+cuttings,470,,Bandah,255,420
+cuttings,480,,Bandah,100,413
+cuttings,490,,Bandah,207,424
+cuttings,500,,Bandah,233,422
+cuttings,505,,Bandah,161,424
+cuttings,510,,Bandah,232,427
+cuttings,515,,Bandah,174,429
+cuttings,520,,Bandah,196,427
+cuttings,525,,Bandah,255,430
+cuttings,530,,Bandah,195,426
+cuttings,535,,Bandah,250,425
+cuttings,540,,Bandah,250,428
+cuttings,545,,Bandah,206,426
+cuttings,550,,Bandah,243,430
+cuttings,555,,Khuiala,256,429
+cuttings,560,,Khuiala,172,430
+cuttings,565,,Khuiala,126,429
+cuttings,570,,Khuiala,152,426
+cuttings,575,,Khuiala,163,425
+cuttings,580,,Khuiala,158,424
+cuttings,585,,Khuiala,109,420
+cuttings,590,,Khuiala,132,421
+cuttings,600,,Khuiala,73,419
+cuttings,605,,Khuiala,94,419
+cuttings,610,,Khuiala,80,414
+cuttings,615,,Khuiala,78,410
+cuttings,620,,Khuiala,88,415
+cuttings,625,,Khuiala,71,414
+cuttings,630,,Khuiala,93,406
+cuttings,635,,Khuiala,61,410
+cuttings,640,,Khuiala,70,411
+cuttings,645,,Khuiala,72,413
+cuttings,650,,Khuiala,66,396
+cuttings,655,,Khuiala,83,402
+cuttings,660,,Khuiala,74,406
+cuttings,665,,Khuiala,81,412
+cuttings,670,,Khuiala,50,417
+cuttings,675,,Khuiala,100,411
+cuttings,680,,Khuiala,65,412
+cuttings,685,,Khuiala,53,407
+cuttings,690,,Khuiala,79,380
+cuttings,695,,Khuiala,71,408
+cuttings,700,,Khuiala,69,411
+cuttings,705,,Khuiala,70,412
+cuttings,710,,Khuiala,71,413
+cuttings,715,,Khuiala,54,408
+cuttings,720,,Khuiala,67,411
+cuttings,725,,Khuiala,60,411
+cuttings,730,,Khuiala,56,411
+cuttings,735,,Khuiala,200,412
+cuttings,740,,Khuiala,33,398
+cuttings,745,,Khuiala,96,418
+cuttings,750,,Khuiala,63,412
+cuttings,755,,Khuiala,63,413
+cuttings,760,,Khuiala,100,417
+cuttings,765,,Khuiala,58,418
+cuttings,770,,Khuiala,70,408
+cuttings,775,,Khuiala,64,413
+cuttings,780,,Khuiala,85,418
+cuttings,785,,Khuiala,115,425
+cuttings,790,,Khuiala,123,426
+cuttings,795,,Khuiala,134,427
+cuttings,800,,Khuiala,143,426
+cuttings,805,,Khuiala,163,421
+cuttings,810,,Khuiala,111,417
+cuttings,815,,Khuiala,298,422
+cuttings,820,,Khuiala,340,422
+cuttings,825,,Khuiala,191,430
+cuttings,830,,Khuiala,168,426
+cuttings,835,,Khuiala,138,428
+cuttings,840,,Khuiala,155,427
+cuttings,845,,Khuiala,192,426
+cuttings,850,,Khuiala,119,428
+cuttings,855,,Khuiala,191,427
+cuttings,860,,Khuiala,81,421
+cuttings,865,,Khuiala,94,431
+cuttings,870,,Khuiala,207,428
+cuttings,875,,Khuiala,133,428
+cuttings,880,,Khuiala,187,429
+cuttings,885,,Khuiala,180,430
+cuttings,890,,Khuiala,174,428
+cuttings,895,,Sanu,167,423
+cuttings,900,,Sanu,128,426
+cuttings,905,,Sanu,119,421
+cuttings,910,,Sanu,153,424
+cuttings,915,,Sanu,181,425
+cuttings,920,,Sanu,174,426
+cuttings,925,,Sanu,149,426
+cuttings,930,,Sanu,140,422
+cuttings,935,,Sanu,159,427
+cuttings,940,,Sanu,129,425
+cuttings,945,,Sanu,131,415
+cuttings,950,,Sanu,126,424
+cuttings,955,,Sanu,151,417
+cuttings,960,,Sanu,98,418
+cuttings,965,,Sanu,110,420
+cuttings,970,,Sanu,90,422
+cuttings,975,,Sanu,133,421
+cuttings,980,,Sanu,130,426
+cuttings,985,,Sanu,120,424
+cuttings,990,,Sanu,141,424
+cuttings,995,,Sanu,100,413
+cuttings,1000,,Sanu,105,420
+cuttings,1005,,Sanu,93,421
+cuttings,1010,,Sanu,125,419
+cuttings,1015,,Sanu,94,421
+cuttings,1020,,Sanu,84,425
+cuttings,1025,,Sanu,92,420
+cuttings,1030,,Sanu,92,421
+cuttings,1035,,Sanu,114,418
+cuttings,1040,,Sanu,95,421
+cuttings,1045,,Sanu,104,418
+cuttings,1050,,Sanu,83,426
+cuttings,1055,,Sanu,103,423
+cuttings,1060,,Sanu,86,422
+cuttings,1065,,Sanu,64,421
+cuttings,1070,,Sanu,143,421
+cuttings,1075,,Sanu,68,422
+cuttings,1080,,Sanu,120,417
+cuttings,1085,,Sanu,122,409
+cuttings,1090,,Sanu,164,399
+cuttings,1095,,Sanu,168,394
+cuttings,1100,,Sanu,100,414
+cuttings,1105,,Sanu,50,388
+cuttings,1110,,Parh,167,420
+cuttings,1115,,Parh,63,411
+cuttings,1120,,Parh,61,424
+cuttings,1125,,Parh,102,419
+cuttings,1130,,Parh,59,419
+cuttings,1135,,Parh,117,423
+cuttings,1140,,Parh,81,423
+cuttings,1145,,Parh,60,421
+cuttings,1150,,Parh,74,423
+cuttings,1155,,Parh,89,423
+cuttings,1160,,Parh,90,427
+cuttings,1165,,Parh,80,426
+cuttings,1170,,Parh,97,427
+cuttings,1175,,Parh,95,428
+cuttings,1180,,Parh,118,429
+cuttings,1185,,Parh,101,430
+cuttings,1190,,Parh,89,428
+cuttings,1195,,Parh,139,431
+cuttings,1200,,Parh,182,431
+cuttings,1205,,Parh,152,432
+cuttings,1210,,Parh,100,430
+cuttings,1215,,Parh,105,429
+cuttings,1220,,Parh,108,429
+cuttings,1225,,Parh,89,430
+cuttings,1230,,Parh,93,429
+cuttings,1235,,Parh,131,431
+cuttings,1240,,Parh,92,431
+cuttings,1245,,Parh,108,426
+cuttings,1250,,Parh,109,428
+cuttings,1255,,Parh,113,426
+cuttings,1260,,Parh,164,426
+cuttings,1265,,Parh,76,418
+cuttings,1270,,Parh,67,421
+cuttings,1275,,Parh,103,421
+cuttings,1280,,Parh,83,421
+cuttings,1285,,Parh,100,421
+cuttings,1290,,Parh,60,419
+cuttings,1295,,Parh,62,417
+cuttings,1300,,Parh,67,421
+cuttings,1305,,Parh,66,421
+cuttings,1310,,Parh,73,421
+cuttings,1315,,Parh,69,420
+cuttings,1320,,Parh,72,416
+cuttings,1325,,Parh,72,421
+cuttings,1330,,Parh,115,423
+cuttings,1335,,Parh,72,423
+cuttings,1340,,Parh,67,421
+cuttings,1345,,Parh,67,418
+cuttings,1350,,Parh,69,419
+cuttings,1355,,Parh,61,420
+cuttings,1360,,Parh,67,421
+cuttings,1365,,Parh,66,421
+cuttings,1375,,Parh,74,420
+cuttings,1380,,Parh,65,420
+cuttings,1385,,Parh,56,416
+cuttings,1390,,Parh,59,416
+cuttings,1395,,Parh,63,419
+cuttings,1400,,Parh,100,420
+cuttings,1405,,Parh,85,421
+cuttings,1410,,Parh,65,419
+cuttings,1415,,Parh,56,419
+cuttings,1420,,Parh,65,422
+cuttings,1425,,Parh,74,418
+cuttings,1430,,Parh,87,423
+cuttings,1435,,Parh,81,419
+cuttings,1440,,Parh,120,420
+cuttings,1445,,Parh,125,418
+cuttings,1450,,Parh,69,420
+cuttings,1455,,Parh,126,422
+cuttings,1460,,Parh,80,423
+cuttings,1465,,Parh,83,423
+cuttings,1470,,Parh,135,424
+cuttings,1475,,Parh,139,425
+cuttings,1480,,Parh,84,422
+cuttings,1485,,Parh,77,425
+cuttings,1490,,Parh,65,421
+cuttings,1495,,Parh,82,426
+cuttings,1500,,Parh,78,421
+cuttings,1505,,Parh,79,423
+cuttings,1510,,Parh,115,421
+cuttings,1515,,Parh,116,420
+cuttings,1520,,Upper Goru,100,425
+cuttings,1525,,Upper Goru,66,423
+cuttings,1530,,Upper Goru,74,421
+cuttings,1535,,Upper Goru,61,420
+cuttings,1540,,Upper Goru,69,418
+cuttings,1545,,Upper Goru,108,419
+cuttings,1550,,Upper Goru,121,423
+cuttings,1555,,Upper Goru,67,419
+cuttings,1560,,Upper Goru,79,419
+cuttings,1565,,Upper Goru,78,421
+cuttings,1570,,Upper Goru,136,423
+cuttings,1575,,Upper Goru,143,422
+cuttings,1580,,Upper Goru,83,423
+cuttings,1585,,Upper Goru,102,425
+cuttings,1590,,Upper Goru,88,420
+cuttings,1595,,Upper Goru,90,422
+cuttings,1600,,Upper Goru,126,424
+cuttings,1605,,Upper Goru,89,423
+cuttings,1610,,Upper Goru,81,421
+cuttings,1615,,Upper Goru,114,423
+cuttings,1620,,Upper Goru,127,424
+cuttings,1625,,Upper Goru,95,425
+cuttings,1630,,Upper Goru,151,425
+cuttings,1635,,Upper Goru,141,425
+cuttings,1640,,Upper Goru,133,425
+cuttings,1645,,Upper Goru,149,425
+cuttings,1650,,Upper Goru,145,424
+cuttings,1655,,Upper Goru,128,424
+cuttings,1660,,Upper Goru,142,426
+cuttings,1665,,Upper Goru,137,426
+cuttings,1670,,Upper Goru,130,425
+cuttings,1675,,Upper Goru,127,425
+cuttings,1680,,Upper Goru,126,425
+cuttings,1685,,Upper Goru,137,424
+cuttings,1690,,Upper Goru,145,425
+cuttings,1695,,Upper Goru,125,422
+cuttings,1700,,Upper Goru,151,424
+cuttings,1705,,Upper Goru,118,419
+cuttings,1710,,Upper Goru,116,425
+cuttings,1715,,Upper Goru,100,427
+cuttings,1720,,Upper Goru,78,424
+cuttings,1725,,Upper Goru,182,426
+cuttings,1730,,Upper Goru,151,426
+cuttings,1735,,Upper Goru,155,422
+cuttings,1740,,Upper Goru,150,425
+cuttings,1745,,Upper Goru,117,421
+cuttings,1750,,Upper Goru,120,420
+cuttings,1755,,Upper Goru,127,423
+cuttings,1760,,Upper Goru,100,423
+cuttings,1765,,Upper Goru,98,422
+cuttings,1770,,Upper Goru,96,422
+cuttings,1780,,Upper Goru,96,421
+cuttings,1785,,Upper Goru,81,422
+cuttings,1790,,Upper Goru,94,419
+cuttings,1795,,Upper Goru,94,417
+cuttings,1800,,Upper Goru,89,421
+cuttings,1805,,Upper Goru,86,421
+cuttings,1810,,Upper Goru,97,419
+cuttings,1815,,Upper Goru,114,423
+cuttings,1820,,Upper Goru,120,423
+cuttings,1825,,Upper Goru,103,420
+cuttings,1830,,Upper Goru,113,419
+cuttings,1835,,Upper Goru,123,419
+cuttings,1840,,Upper Goru,108,422
+cuttings,1845,,Lower Goru,91,419
+cuttings,1850,,Lower Goru,128,417
+cuttings,1855,,Lower Goru,119,422
+cuttings,1860,,Lower Goru,122,422
+cuttings,1865,,Lower Goru,139,417
+cuttings,1870,,Lower Goru,103,420
+cuttings,1875,,Lower Goru,186,422
+cuttings,1880,,Lower Goru,123,419
+,1885,,Lower Goru,92,421
+,1890,,Lower Goru,111,418
+,1895,,Lower Goru,114,422
+,1900,,Lower Goru,121,422
+,1905,,Lower Goru,118,420
+,1910,,Lower Goru,102,421
+,1915,,Lower Goru,122,426
+,1920,,Lower Goru,113,426
+,1925,,Lower Goru,123,429
+,1930,,Lower Goru,129,425
+,1935,,Lower Goru,117,422
+,1940,,Lower Goru,111,424
+,1945,,Lower Goru,106,427
+,1950,,Lower Goru,134,425
+,1955,,Lower Goru,121,424
+,1960,,Lower Goru,111,421
+,1965,,Lower Goru,119,423
+,1970,,Lower Goru,139,423
+,1975,,Lower Goru,180,428
+,1980,,Lower Goru,72,428
+,1985,,Lower Goru,113,426
+,1990,,Lower Goru,111,423
+,1995,,Lower Goru,122,428
+,2000,,Lower Goru,95,430
+,2005,,Lower Goru,83,432
+,2010,,Lower Goru,92,428
+,2015,,Lower Goru,90,427
+,2020,,Lower Goru,98,428
+,2025,,Lower Goru,104,425
+,2030,,Lower Goru,98,432
+,2035,,Lower Goru,89,429
+,2040,,Lower Goru,91,431
+,2045,,Lower Goru,91,430
+,2050,,Lower Goru,84,433
+,2055,,Lower Goru,90,432
+,2060,,Lower Goru,107,432
+,2065,,Lower Goru,82,435
+,2070,,Lower Goru,98,427
+,2075,,Lower Goru,87,430
+,2080,,Lower Goru,82,430
+,2085,,Lower Goru,79,431
+,2090,,Lower Goru,72,432
+,2095,,Lower Goru,94,431
+,2100,,Lower Goru,85,431
+,2105,,Lower Goru,77,434
+,2110,,Pariwar,100,433
+,2115,,Pariwar,102,435
+,2120,,Pariwar,99,436
+,2125,,Pariwar,155,436
+,2130,,Pariwar,95,431
+,2135,,Pariwar,108,432
+,2140,,Pariwar,194,428
+,2145,,Pariwar,167,430
+,2150,,Pariwar,125,431
+,2155,,Pariwar,94,431
+,2160,,Pariwar,86,429
+,2165,,Pariwar,109,433
+,2170,,Pariwar,117,431
+,2175,,Pariwar,105,434
+,2180,,Pariwar,98,431
+,2185,,Pariwar,122,433
+,2190,,Pariwar,128,432
+,2195,,Pariwar,94,435
+,2200,,Pariwar,96,434
+,2205,,Pariwar,116,432
+,2210,,Pariwar,91,430
+,2215,,Pariwar,316,431
+,2220,,Pariwar,143,431
+,2225,,Pariwar,121,429
+,2230,,Pariwar,152,428
+,2235,,Pariwar,108,432
+,2240,,Pariwar,128,432
+,2245,,Pariwar,120,427
+,2250,,Pariwar,156,428
+,2255,,Pariwar,147,430
+,2260,,Pariwar,163,428
+,2265,,Pariwar,191,430
+,2270,,Pariwar,146,435
+,2275,,Pariwar,142,434
+,2280,,Pariwar,143,431
+,2285,,Pariwar,128,432
+,2290,,Pariwar,127,432
+,2295,,Pariwar,68,434
+,2300,,Pariwar,79,434
+,2305,,Pariwar,94,430
+,2310,,Pariwar,147,429
+,2315,,Pariwar,157,432
+,2320,,Pariwar,132,431
+,2325,,Pariwar,126,429
+,2330,,Pariwar,247,424
+,2335,,Pariwar,228,420
+,2340,,Pariwar,137,424
+,2345,,Pariwar,163,421
+,2350,,Pariwar,183,428
+,2355,,Pariwar,169,431
+,2360,,Pariwar,161,429
+,2365,,Pariwar,274,425
+,2370,,Pariwar,147,427
+,2375,,Pariwar,207,427
+,2380,,Pariwar,149,429
+,2385,,Pariwar,251,351
+,2390,,Pariwar,206,432
+,2395,,Pariwar,183,431
+,2400,,Pariwar,184,429
+,2405,,Pariwar,169,429
+,2410,,Pariwar,157,427
+,2415,,Pariwar,185,432
+,2420,,Pariwar,135,435
+,2425,,Pariwar,137,432
+,2430,,Pariwar,326,418
+,2435,,Pariwar,159,433
+,2440,,Pariwar,200,434
+,2445,,Pariwar,192,433
+,2450,,Pariwar,194,435
+,2455,,Pariwar,288,434
+,2460,,Pariwar,203,434
+,2465,,Pariwar,165,437
+,2470,,Pariwar,161,435
+,2475,,Pariwar,154,437
+,2480,,Pariwar,178,435
+,2485,,Pariwar,218,434
+,2490,,Pariwar,146,436
+,2495,,Pariwar,181,434
+,2500,,Pariwar,172,434
+,2505,,Pariwar,145,435
+,2510,,Pariwar,167,431
+,2515,,Pariwar,174,431
+,2520,,Pariwar,162,438
+,2525,,Pariwar,134,428
+,2530,,Pariwar,142,437
+,2535,,Pariwar,130,436
+,2540,,Pariwar,159,438
+,2545,,Pariwar,151,440
+,2550,,Pariwar,202,436
+,2555,,Pariwar,203,430
+,2560,,Pariwar,138,435
+,2565,,Pariwar,222,433
+,2570,,Pariwar,237,433
+,2575,,Pariwar,139,435
+,2580,,Pariwar,188,435
+,2585,,Pariwar,216,435
+,2590,,Pariwar,167,436
+,2595,,Pariwar,155,438
+,2600,,Pariwar,178,439
+,2605,,Pariwar,150,436
+,2610,,Pariwar,250,444
+,2615,,Pariwar,184,439
+,2620,,Pariwar,221,430
+,2625,,Pariwar,227,436
+,2630,,Pariwar,198,435
+,2635,,Pariwar,200,434
+,2640,,Pariwar,227,433
+,2645,,Pariwar,178,435
+,2650,,Pariwar,228,433
+,2655,,Pariwar,275,431
+,2660,,Pariwar,252,435
+,2665,,Pariwar,212,435
+,2670,,Pariwar,310,348
+,2680,,Pariwar,226,437
+,2685,,Pariwar,218,435
+,2690,,Pariwar,134,429
+,2695,,Pariwar,212,430
+,2700,,Pariwar,255,431
+,2705,,Pariwar,206,431
+,2710,,Pariwar,107,436
+,2715,,Pariwar,242,430
+,2720,,Pariwar,189,430
+,2725,,Pariwar,229,431
+,2730,,Pariwar,213,432
+,2735,,Pariwar,232,430
+,2740,,Pariwar,156,438
+,2745,,Pariwar,156,437
+,2750,,Pariwar,194,425
+,2755,,Pariwar,156,437
+,2760,,Pariwar,270,433
+,2765,,Pariwar,145,440
+,2770,,Pariwar,167,436
+,2775,,Pariwar,259,350
+,2780,,Pariwar,234,435
+,2785,,Pariwar,177,437
+,2790,,Pariwar,250,430
+,2795,,Pariwar,193,437
+,2800,,Pariwar,175,436
+,2805,,Pariwar,189,436
+,2810,,Pariwar,173,435
+,2815,,Pariwar,225,433
+,2820,,Pariwar,226,435
+,2825,,Pariwar,233,432
+,2830,,Pariwar,250,432
+,2835,,Pariwar,239,421
+,2840,,Pariwar,234,432
+,2845,,Pariwar,218,430
+,2850,,Pariwar,96,441
+,2855,,Pariwar,106,431
+,2860,,Pariwar,101,436
+,2865,,Pariwar,143,438
+,2870,,Pariwar,118,436
+,2875,,Pariwar,138,437
+,2880,,Pariwar,139,439
+,2885,,Pariwar,112,436
+,2890,,Pariwar,178,439

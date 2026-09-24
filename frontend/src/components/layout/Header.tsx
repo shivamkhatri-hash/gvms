@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, LogOut, Activity, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { samplesService } from '../../services/samples.service';
+import { RegionSwitcher } from './RegionSwitcher';
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void;
@@ -35,7 +36,10 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen }) => {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Oracle Region / User Switcher */}
+        <RegionSwitcher />
+
         {/* Health status badge */}
         <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-xs">
           <span
@@ -66,3 +70,4 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen }) => {
     </header>
   );
 };
+

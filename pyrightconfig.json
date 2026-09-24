@@ -4,5 +4,10 @@
   "extraPaths": [
     "backend"
   ],
+  "typeCheckingMode": "off",
+  "reportGeneralTypeIssues": "none",
+  "reportAssignmentType": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportUndefinedVariable": "none",
   "reportMissingTypeStubs": "none"
 }

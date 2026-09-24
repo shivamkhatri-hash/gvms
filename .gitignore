@@ -26,6 +26,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+backend/wheelhouse/
+*.whl
 
 # Logs and test outputs
 *.log

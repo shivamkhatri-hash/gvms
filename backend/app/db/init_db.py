@@ -197,7 +197,29 @@ def init_db(db: Session) -> None:
             except Exception:
                 db.rollback()
 
-    if settings.DATABASE_PROVIDER.lower() != "oracle":
+        for oracle_col_sql in [
+            "ALTER TABLE users ADD (department VARCHAR2(255) DEFAULT 'Geochemistry Laboratory')",
+            "ALTER TABLE users ADD (assigned_tasks VARCHAR2(1000))",
+            "ALTER TABLE dataset_registry ADD (sql_table_name VARCHAR2(100))",
+            "ALTER TABLE dataset_registry ADD (module VARCHAR2(100) DEFAULT 'geochemistry')",
+            "ALTER TABLE dataset_registry ADD (status VARCHAR2(50) DEFAULT 'active')",
+            "ALTER TABLE dataset_registry ADD (version VARCHAR2(50) DEFAULT '1.0')",
+            "ALTER TABLE dataset_registry ADD (primary_depth_column VARCHAR2(100))",
+            "ALTER TABLE dataset_registry ADD (primary_well_column VARCHAR2(100))",
+            "ALTER TABLE variable_registry ADD (is_required NUMBER(1) DEFAULT 0)",
+            "ALTER TABLE variable_registry ADD (is_nullable NUMBER(1) DEFAULT 1)",
+            "ALTER TABLE variable_registry ADD (is_calculated NUMBER(1) DEFAULT 0)",
+            "ALTER TABLE variable_registry ADD (formula VARCHAR2(255))",
+            "ALTER TABLE upload_logs ADD (quality_report CLOB)",
+        ]:
+            try:
+                db.execute(text(oracle_col_sql))
+                db.commit()
+            except Exception:
+                db.rollback()
+
+        _run_oracle_ddl_setup(db)
+    else:
         # Ensure dataset_registry table has the new columns
         execute_dialect_sql(db, "ALTER TABLE dataset_registry ADD COLUMN IF NOT EXISTS sql_table_name VARCHAR(100)")
         execute_dialect_sql(db, "ALTER TABLE dataset_registry ADD COLUMN IF NOT EXISTS module VARCHAR(100) DEFAULT 'geochemistry'")
@@ -208,7 +230,7 @@ def init_db(db: Session) -> None:
         execute_dialect_sql(db, "ALTER TABLE dataset_registry ADD COLUMN IF NOT EXISTS primary_well_column VARCHAR(100)")
 
         # Ensure variable_registry table has the new columns
-        execute_dialect_sql(db, "ALTER TABLE variable_registry ADD COLUMN IF NOT EXISTS synonyms TEXT[] DEFAULT '{}'")
+        execute_dialect_sql(db, "ALTER TABLE variable_registry ADD COLUMN IF NOT EXISTS synonyms JSONB DEFAULT '[]'::jsonb")
         execute_dialect_sql(db, "ALTER TABLE variable_registry ADD COLUMN IF NOT EXISTS is_required BOOLEAN DEFAULT FALSE")
         execute_dialect_sql(db, "ALTER TABLE variable_registry ADD COLUMN IF NOT EXISTS is_nullable BOOLEAN DEFAULT TRUE")
         execute_dialect_sql(db, "ALTER TABLE variable_registry ADD COLUMN IF NOT EXISTS is_calculated BOOLEAN DEFAULT FALSE")
@@ -217,7 +239,466 @@ def init_db(db: Session) -> None:
         # Ensure upload_logs table has quality_report column
         execute_dialect_sql(db, "ALTER TABLE upload_logs ADD COLUMN IF NOT EXISTS quality_report TEXT")
 
+        # Ensure users table has department and assigned_tasks columns
+        execute_dialect_sql(db, "ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(255) DEFAULT 'Geochemistry Laboratory'")
+        execute_dialect_sql(db, "ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_tasks VARCHAR(1000)")
+
         _run_postgres_ddl_setup(db)
+
+def _run_oracle_ddl_setup(db: Any) -> None:
+    oracle_views = [
+        """
+        CREATE OR REPLACE VIEW DL_BIOMARKER_STERANE_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, BH.UBHI) AS UBHI,
+            t.NAME,
+            t.OBJECT_NO,
+            t.DEPTH_TOP,
+            t.DEPTH_BOTTOM,
+            t.FORMATION,
+            t.C27_DIASTERANE_BETA_ALPHA_S,
+            t.C27_DIASTERANE_BETA_ALPHA_R,
+            t.C27_STERANE_S,
+            t.C27_STERANE_BETA_BETA_R,
+            t.C27_STERANE_BETA_BETA_S,
+            t.C27_STERANE_R,
+            t.C28_DIASTERANE_BETA_ALPHA_S,
+            t.C28_DIASTERANE_BETA_ALPHA_R,
+            t.C28_STERANE_S,
+            t.C28_STERANE_BETA_BETA_R,
+            t.C28_STERANE_BETA_BETA_S,
+            t.C28_STERANE_R,
+            t.C29_DIASTERANE_BETA_ALPHA_S,
+            t.C29_DIASTERANE_BETA_ALPHA_R,
+            t.C29_STERANE_S,
+            t.C29_STERANE_BETA_BETA_R,
+            t.C29_STERANE_BETA_BETA_S,
+            t.C29_STERANE_R,
+            t.C27_DIASTERANE_INDEX,
+            t.C29_DIASTERANE_INDEX,
+            t.C28ST_BY_C29ST,
+            t.C27ST_PLUS_C28ST_PLUS_C29ST,
+            t.PERC_C27ST_R,
+            t.PERC_C28ST_R,
+            t.PERC_C29ST_R,
+            t.TOTAL_STERANE,
+            t.PERC_C27_ST,
+            t.PERC_C28_ST,
+            t.PERC_C29_ST,
+            t.C29_S_BY_S_PLUS_R,
+            t.C29_BB_BY_AA_PLUS_BB,
+            t.C27_DIAST_BY_C29_DIAST,
+            t.C27_ST_BY_C29_ST,
+            t.DIAS_C27_BY_C27_PLUS_C29,
+            t.C28BBS_BY_C29BBS_STERANE,
+            t.C27R_BY_C27R_PLUS_C29R,
+            t.REMARKS,
+            t.ANALYSED_AT,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_BIOMARKER_STERANE_ t
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = t.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_BIOMARKER_HOPANE_VW AS
+        SELECT 
+            BIOHP.ID,
+            COALESCE(BIOHP.UBHI, BH.UBHI) AS UBHI,
+            BIOHP.NAME,
+            BIOHP.DEPTH_TOP,
+            BIOHP.DEPTH_BOTTOM,
+            BIOHP.OBJECT_NO,
+            BIOHP.FORMATION,
+            BIOHP.C27_TS,
+            BIOHP.C27_TM,
+            BIOHP.BCD,
+            BIOHP.BNH,
+            BIOHP.C29H,
+            BIOHP.C29_TS,
+            BIOHP.DIAHOPANE,
+            BIOHP.C29_M,
+            BIOHP.OLA,
+            BIOHP.OLB,
+            BIOHP.C30H,
+            BIOHP.C30M,
+            BIOHP.C31HH_S,
+            BIOHP.C31HH_R,
+            BIOHP.C32HH_S,
+            BIOHP.C32HH_R,
+            BIOHP.C33HH_S,
+            BIOHP.C33HH_R,
+            BIOHP.C34HH_S,
+            BIOHP.C34HH_R,
+            BIOHP.C35HH_S,
+            BIOHP.C35HH_R,
+            BIOHP.TOTAL_HH,
+            BIOHP.TM_BY_TS,
+            BIOHP.C27TS_BY_TS_PLUS_TM,
+            BIOHP.C29H_BY_C30H,
+            BIOHP.C30M_BY_C30H,
+            BIOHP.C30H_BY_H_PLUS_M,
+            BIOHP.C31H_S_BY_S_PLUS_R,
+            BIOHP.C32H_S_BY_S_PLUS_R,
+            BIOHP.C33H_S_BY_S_PLUS_R,
+            BIOHP.C34H_S_BY_S_PLUS_R,
+            BIOHP.C35H_S_BY_S_PLUS_R,
+            BIOHP.HOMOHOPANE_INDEX,
+            BIOHP.C35_S_BY_C34_S,
+            BIOHP.BCD_INDEX,
+            BIOHP.OLEANANE_INDEX,
+            BIOHP.C29TS_BY_C29H_PLUS_C29TS,
+            BIOHP.DIAHOPANE_INDEX,
+            BIOHP.BNH_INDEX,
+            BIOHP.C31HH_R_BY_C30H,
+            BIOHP.C30_DIAHOPANE_BY_C29TS,
+            BIOHP.PERC_C31HH,
+            BIOHP.PERC_C32HH,
+            BIOHP.PERC_C33HH,
+            BIOHP.PERC_C34HH,
+            BIOHP.PERC_C35HH,
+            BIOHP.REMARKS,
+            BIOHP.INSERT_USER,
+            BIOHP.INSERT_DATE,
+            BIOHP.UPDATE_USER,
+            BIOHP.UPDATE_DATE,
+            BIOHP.BOREHOLE_ID,
+            BIOHP.UPLOADED_BY
+        FROM DL_BIOMARKER_HOPANE_ BIOHP
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = BIOHP.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_BIOM_TRICYCLIC_TERP_VW AS
+        SELECT 
+            t.ID,
+            BH.UBHI,
+            t.NAME,
+            t.DEPTH,
+            t.C19TT,
+            t.C20TT,
+            t.C21TT,
+            t.C22TT,
+            t.C23TT,
+            t.C24TT,
+            t.C25TT_R,
+            t.C25TT_S,
+            t.C24TET,
+            t.C26TT_R,
+            t.C26TT_S,
+            t.TOTAL,
+            t.PERC_C19TT,
+            t.PERC_C20TT,
+            t.PERC_C21TT,
+            t.PERC_C22TT,
+            t.PERC_C23TT,
+            t.PERC_C24TT,
+            t.PERC_C25TT_R,
+            t.PERC_C25TT_S,
+            t.PERC_C24TET,
+            t.PERC_C26TT_R,
+            t.PERC_C26TT_S,
+            t.REMARKS,
+            t.ANALYSED_AT,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID
+        FROM DL_BIOM_TRICYCLIC_TERP_ t
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = t.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_BIOMARKER_AROMATIC_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, BH.UBHI) AS UBHI,
+            t.NAME,
+            t.DEPTH,
+            t.OBJECT,
+            t.FORMATION,
+            t.DBT_DIBENZO,
+            t.PHE_PHENA,
+            t.DBT_BY_PHE,
+            t.MP_3,
+            t.MP_2,
+            t.MP_9,
+            t.MP_1,
+            t.MPI,
+            t.VRC,
+            t.NDR,
+            t.TMN_1_2_7,
+            t.TMN_1_3_7,
+            t.TMN_RATIO,
+            t.ETR,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_BIOMARKER_AROMATIC_ t
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = t.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_BIOMARKER_PR_PH_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, BH.UBHI) AS UBHI,
+            t.NAME,
+            t.DEPTH,
+            t.OBJECT,
+            t.FORMATION,
+            t.PRISTANE,
+            t.PHYTANE,
+            t.PR_BY_PH,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_BIOMARKER_PR_PH_ t
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = t.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_GAS_CHROMATOGRAPHY_VW AS
+        SELECT
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            t.NAME,
+            t.OBJECT_NUMBER,
+            t.INTERVAL_TOP AS INETRVAL_TOP,
+            t.INTERVAL_BOTTOM,
+            t.FORMATION,
+            t.MATERIAL_TYPE,
+            t.ANALYSIS_DATE,
+            t.LOCATION,
+            t.COLLECTION_DATE,
+            t.NC10, t.NC11, t.NC12, t.NC13, t.NC14, t.NC15, t.NC16, t.NC17,
+            t.PR, t.NC18, t.PH, t.NC19, t.NC20, t.NC21, t.NC22, t.NC23,
+            t.NC24, t.NC25, t.NC26, t.NC27, t.NC28, t.NC29, t.NC30,
+            t.NC31, t.NC32, t.NC33, t.NC34, t.NC35, t.NC36, t.NC37,
+            t.NC38, t.NC39, t.NC40,
+            t.PR_BY_PH,
+            t.PR_BY_NC17,
+            t.PH_BY_NC18,
+            t.PR_NC17_BY_PH_NC18,
+            t.NC21_NC22_BY_NC28_NC29,
+            t.OEP_ODD_EVEN_PREF,
+            t.CP_INDEX,
+            t.TA_RATIO,
+            t.NC17_BY_NC29,
+            t.PAQ,
+            t.NC17_BY_NC27,
+            t.C_MAX,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.UPLOADED_BY
+        FROM DL_GAS_CHROMATOGRAPHY_ t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_GCH_OIL_COMPOSITION_VW AS
+        SELECT
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            t.WELL_NAME,
+            t.OBJECT_NUMBER,
+            t.INTERVAL_TOP,
+            t.INTERVAL_BOTTOM,
+            t.FORMATION,
+            t.MATERIAL_TYPE,
+            t.ANALYSIS_DATE,
+            t.LOCATION,
+            t.COLLECTION_DATE,
+            t.IBP,
+            t.WATER_CONTENT,
+            t.API_GRAVITY,
+            t.POUR_POINT,
+            t.SULFUR,
+            t.SAT_BY_ARO,
+            t.SAT,
+            t.AR,
+            t.ASP,
+            t.NSO,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_GCH_OIL_COMPOSITION_ t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_ISOTOPE_GAS_VW AS
+        SELECT
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            t.NAME,
+            t.OBJECT_NUMBER,
+            t.INTERVAL_TOP,
+            t.INTERVAL_BOTTOM,
+            t.FORMATION,
+            t.MATERIAL_TYPE,
+            t.COLLECTION_DATE,
+            t.C1, t.C2, t.C3, t.IC4, t.NC4, t.IC5, t.NC5, t.C6_PLUS, t.C2_PLUS,
+            t.N2, t.CO2, t.HE, t.HYDROGEN,
+            t.DELTA_C1, t.DELTA_C2, t.DELTA_C3, t.DELTA_IC4, t.DELTA_NC4,
+            t.DELTA_IC5, t.DELTA_NC5, t.DELTA_CO2,
+            t.C1_BY_C2_PLUS_C3, t.C2_BY_C3, t.DELTA_C2_BY_DELTA_C3,
+            t.LN_C2_BY_C3, t.C1_BY_C2, t.LN_C1_BY_C2,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_ISOTOPE_GAS_ t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_ISOTOPE_OIL_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(b.UBHI, t.UBHI) AS UBHI,
+            t.NAME,
+            t.INTERVAL_TOP,
+            t.INTERVAL_BOTTOM,
+            t.FORMATION,
+            t.DELTA_SAT,
+            t.DELTA_ARO,
+            t.CV,
+            t.INSERT_USER, t.INSERT_DATE, t.UPDATE_USER, t.UPDATE_DATE,
+            t.BOREHOLE_ID, t.UPLOADED_BY
+        FROM DL_ISOTOPE_OIL t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_ISOTOPE_CSIA_VW AS
+        SELECT
+            CSA.ID,
+            BH.UBHI,
+            CSA.NAME,
+            CSA.OBJECT_NUMBER,
+            CSA.INTERVAL_TOP,
+            CSA.INTERVAL_BOTTOM,
+            CSA.FORMATION,
+            CSA.MATERIAL_TYPE,
+            CSA.COLLECTION_DATE,
+            CSA.NC15, CSA.NC16, CSA.NC17, CSA.NC18, CSA.NC19,
+            CSA.NC20, CSA.NC21, CSA.NC22, CSA.NC23, CSA.NC24,
+            CSA.NC25, CSA.NC26, CSA.NC27, CSA.NC28, CSA.NC29,
+            CSA.NC30, CSA.NC31, CSA.NC32, CSA.NC33, CSA.NC34,
+            CSA.ANALYSED_AT,
+            CSA.REMARKS,
+            CSA.INSERT_USER,
+            CSA.INSERT_DATE,
+            CSA.UPDATE_USER,
+            CSA.UPDATE_DATE,
+            CSA.BOREHOLE_ID
+        FROM DL_ISOTOPE_CSIA_ CSA
+        LEFT JOIN W_BOREHOLE_ BH ON BH.ID = CSA.BOREHOLE_ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_IGC_TRACE_METAL_VW AS
+        SELECT 
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            t.NAME,
+            t.OBJECT_NO,
+            t.INTERVAL_TOP,
+            t.INETRVAL_BOTTOM AS INTERVAL_BOTTOM,
+            t.FORMATION,
+            t.INTERVAL_DESC,
+            t.SAMPLING_DATE,
+            t.MATERIAL_TYPE,
+            t.DESCRIPTION,
+            t.ANALYSED_AT,
+            t.REMARKS,
+            t.ALUMINIUM, t.ARSENIC, t.BARIUM, t.BERYLLIUM, t.BORON, t.CADMIUM,
+            t.CALCIUM, t.CESIUM, t.CHROMIUM, t.COBALT, t.COPPER, t.HAFNIUM,
+            t.IRIDIUM, t.IRON, t.LANTHANUM, t.LEAD, t.LITHIUM, t.MAGNESIUM,
+            t.MANGANESE, t.MERCURY, t.MOLYBDENUM, t.NICKEL, t.NUBIUM,
+            t.POTASSIUM, t.RHENIUM, t.RUBIDIUM, t.SCANDINAVIUM, t.SELENIUM,
+            t.SILVER, t.SODIUM, t.STRONTIUM, t.THORIUM, t.TIN, t.TITANIUM,
+            t.VANADIUM, t.ZINC,
+            t.INSERT_USER, t.INSERT_DATE, t.UPDATE_USER, t.UPDATE_DATE,
+            t.BOREHOLE_ID, t.UPLOADED_BY
+        FROM DL_IGC_TRACE_METAL_ t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """,
+        """
+        CREATE OR REPLACE VIEW DL_MICROBIOLOGY_DATA_VW AS
+        SELECT
+            t.ID,
+            COALESCE(t.UBHI, b.UBHI) AS UBHI,
+            t.SAMPLE_NO,
+            t.LATITUDE,
+            t.LONGITUDE,
+            t.METHANE_C1,
+            t.ETHANE_C2,
+            t.PROPANE_C3,
+            t.ISO_BUTANE_IC4,
+            t.N_BUTANE_NC4,
+            t.ISO_PENTANE_IC5,
+            t.N_PENTANE_NC5,
+            t.WET_GAS_C2PLUS,
+            t.TOTAL_GAS_C1PLUS,
+            t.C1_BY_C2,
+            t.C1_BY_C2_PLUS_C3,
+            t.C2_BY_C3,
+            t.C3_BY_C1,
+            t.C1_BY_C1PLUS,
+            t.PROPANE_OXI_COUNT,
+            t.PROPANE_OXI_COUNT1,
+            t.PROPANOTROPHS_COUNT,
+            t.BUTANE_OXI_COUNT,
+            t.BUTANE_OXI_COUNT1,
+            t.BUTANOTROPHS_COUNT,
+            t.REMARKS,
+            t.INSERT_USER,
+            t.INSERT_DATE,
+            t.UPDATE_USER,
+            t.UPDATE_DATE,
+            t.BOREHOLE_ID,
+            t.UPLOADED_BY
+        FROM DL_MICROBIOLOGY_DATA_ t
+        LEFT JOIN W_BOREHOLE_ b ON t.BOREHOLE_ID = b.ID
+        """
+    ]
+    for view_sql in oracle_views:
+        try:
+            db.execute(text(view_sql.strip()))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"Oracle view creation note: {e}")
+
+    # Normalize dataset_registry table names to uppercase
+    try:
+        db.execute(text("UPDATE dataset_registry SET sql_table_name = UPPER(sql_table_name) WHERE sql_table_name IS NOT NULL"))
+        db.execute(text("UPDATE dataset_registry SET sql_table_name = 'DL_CL_CUTTING_SOURCEROCK' WHERE name = 'cutting_source_rock'"))
+        db.execute(text("UPDATE dataset_registry SET sql_table_name = 'DL_CL_CORE_SOURCEROCK' WHERE name = 'core_source_rock'"))
+        db.commit()
+    except Exception as e:
+        db.rollback()
 
 def _run_postgres_ddl_setup(db: Any) -> None:
     # Ensure DL_CL_CORE_SOURCEROCK exists
@@ -491,17 +972,21 @@ def _run_postgres_ddl_setup(db: Any) -> None:
     """)
     db.commit()
 
-    # Recreate DL_ISOTOPE_CSIA table and view
+    # Recreate DL_ISOTOPE_CSIA_ table and view
     execute_dialect_sql(db, "DROP VIEW IF EXISTS DL_ISOTOPE_CSIA_VW CASCADE")
     execute_dialect_sql(db, "DROP TABLE IF EXISTS DL_ISOTOPE_CSIA CASCADE")
+    execute_dialect_sql(db, "DROP TABLE IF EXISTS DL_ISOTOPE_CSIA_ CASCADE")
     execute_dialect_sql(db, """
-        CREATE TABLE DL_ISOTOPE_CSIA (
+        CREATE TABLE DL_ISOTOPE_CSIA_ (
             ID SERIAL PRIMARY KEY,
             UBHI VARCHAR(64),
-            NAME TEXT,
+            NAME VARCHAR(200),
+            OBJECT_NUMBER VARCHAR(200),
             INTERVAL_TOP DOUBLE PRECISION,
             INTERVAL_BOTTOM DOUBLE PRECISION,
-            FORMATION TEXT,
+            FORMATION VARCHAR(500),
+            MATERIAL_TYPE VARCHAR(200),
+            COLLECTION_DATE DATE,
             NC15 DOUBLE PRECISION,
             NC16 DOUBLE PRECISION,
             NC17 DOUBLE PRECISION,
@@ -522,9 +1007,11 @@ def _run_postgres_ddl_setup(db: Any) -> None:
             NC32 DOUBLE PRECISION,
             NC33 DOUBLE PRECISION,
             NC34 DOUBLE PRECISION,
-            INSERT_USER TEXT,
+            ANALYSED_AT VARCHAR(200),
+            REMARKS VARCHAR(2000),
+            INSERT_USER VARCHAR(64),
             INSERT_DATE DATE DEFAULT CURRENT_DATE,
-            UPDATE_USER TEXT,
+            UPDATE_USER VARCHAR(64),
             UPDATE_DATE DATE DEFAULT CURRENT_DATE,
             BOREHOLE_ID INTEGER,
             uploaded_by UUID
@@ -536,13 +1023,18 @@ def _run_postgres_ddl_setup(db: Any) -> None:
             t.ID,
             COALESCE(b.UBHI, t.UBHI) AS UBHI,
             t.NAME,
+            t.OBJECT_NUMBER,
             t.INTERVAL_TOP,
             t.INTERVAL_BOTTOM,
             t.FORMATION,
+            t.MATERIAL_TYPE,
+            t.COLLECTION_DATE,
             t.NC15, t.NC16, t.NC17, t.NC18, t.NC19, t.NC20, t.NC21, t.NC22, t.NC23, t.NC24, t.NC25, t.NC26, t.NC27, t.NC28, t.NC29, t.NC30, t.NC31, t.NC32, t.NC33, t.NC34,
+            t.ANALYSED_AT,
+            t.REMARKS,
             t.INSERT_USER, t.INSERT_DATE, t.UPDATE_USER, t.UPDATE_DATE,
             t.BOREHOLE_ID, t.uploaded_by
-        FROM DL_ISOTOPE_CSIA t
+        FROM DL_ISOTOPE_CSIA_ t
         LEFT JOIN W_BOREHOLE b ON t.BOREHOLE_ID = b.BOREHOLE_ID
     """)
 
@@ -1819,6 +2311,23 @@ def _run_postgres_ddl_setup(db: Any) -> None:
         }
     }
 
+    if settings.DATABASE_PROVIDER.lower() != "oracle":
+        for seq_name, tbl_name in [
+            ("upload_log_seq", "upload_logs"),
+            ("audit_log_seq", "audit_logs"),
+            ("dataset_registry_seq", "dataset_registry"),
+            ("variable_registry_seq", "variable_registry"),
+            ("dataset_version_seq", "dataset_versions"),
+            ("generic_record_seq", "generic_dataset_records"),
+            ("version_record_seq", "version_record_mapping"),
+        ]:
+            try:
+                db.execute(text(f"CREATE SEQUENCE IF NOT EXISTS {seq_name}"))
+                db.execute(text(f"SELECT setval('{seq_name}', COALESCE((SELECT MAX(id) FROM {tbl_name}), 0) + 1, false)"))
+                db.commit()
+            except Exception:
+                db.rollback()
+
     for table_name in db_tables:
         t_upper = table_name.upper()
         if not (t_upper.startswith("DL_CL_") or t_upper.startswith("DL_GAS_") or t_upper.startswith("DL_GCH_") or t_upper.startswith("DL_ISOTOPE_") or t_upper.startswith("DL_BIOMARKER_") or t_upper.startswith("DL_BIOM_") or t_upper.startswith("DL_IGC_") or t_upper.startswith("DL_MICROBIOLOGY_") or t_upper == "PETROLEUM_DATA"):
@@ -1835,7 +2344,7 @@ def _run_postgres_ddl_setup(db: Any) -> None:
             "DL_BIOMARKER_PR_PH_VW": "DL_BIOMARKER_PR_PH_",
             "DL_ISOTOPE_GAS_VW": "DL_ISOTOPE_GAS_",
             "DL_ISOTOPE_OIL_VW": "DL_ISOTOPE_OIL",
-            "DL_ISOTOPE_CSIA_VW": "DL_ISOTOPE_CSIA",
+            "DL_ISOTOPE_CSIA_VW": "DL_ISOTOPE_CSIA_",
             "DL_IGC_TRACE_METAL_VW": "DL_IGC_TRACE_METAL_",
             "DL_MICROBIOLOGY_DATA_VW": "DL_MICROBIOLOGY_DATA_"
         }

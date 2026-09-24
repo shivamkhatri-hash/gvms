@@ -13,18 +13,7 @@ import api from '../services/api';
 import { reportsService } from '../services/reports.service';
 import { applyGlobalLayoutDefaults, GLOBAL_PLOTLY_EXPORT_CONFIG } from '../utils/plotlyConfig';
 import { DashboardDatasetTable } from '../components/common/DashboardDatasetTable';
-import {
-  apiDataList,
-  gcDataList,
-  tricyclicDataList,
-  hhDataList,
-  isotopicDataList,
-  c27DataList,
-  cvDataList,
-  csiaFormations,
-  csiaDataList,
-  crossDataList
-} from './oilLabData';
+
 
 interface VariableDef {
   id: number;
@@ -265,6 +254,20 @@ export const OilCompositionDashboard: React.FC = () => {
     refetchOil();
   };
 
+  // Export report with direct on-screen Plotly graph snapshots for PDF
+  const handleExport = async (fmt: 'pdf' | 'excel' | 'csv') => {
+    if (!selectedDatasetId) return;
+    try {
+      if (fmt === 'pdf') {
+        await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+      } else {
+        await reportsService.downloadReport(fmt, selectedDatasetId, serializedFilters);
+      }
+    } catch (err) {
+      console.error('Failed to export report:', err);
+    }
+  };
+
   // API Gravity vs Depth scientific points mapping (declared before early returns to satisfy React rules of hooks)
   const apiVsDepthPoints = React.useMemo(() => {
     if (!oilData || !Array.isArray(oilData)) return [];
@@ -316,15 +319,7 @@ export const OilCompositionDashboard: React.FC = () => {
     });
   };
 
-  // Reports export helper
-  const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
-    if (!selectedDatasetId) return;
-    try {
-      await reportsService.downloadReport(format, selectedDatasetId, serializedFilters);
-    } catch (err) {
-      alert('Report download failed.');
-    }
-  };
+
 
   if (datasetsLoading || !selectedDatasetId) {
     return (
@@ -435,7 +430,7 @@ export const OilCompositionDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="hidden border-b border-slate-200">
+      <div className="flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab('scientific')}
           className={`py-3 px-6 text-sm font-bold border-b-2 transition-colors ${
@@ -594,13 +589,21 @@ export const OilCompositionDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Dataset Records Table (Default Collapsed at Top) */}
+              <DashboardDatasetTable
+                title="Oil Composition Dataset Records"
+                data={oilData}
+                variables={oilDataset?.variables}
+                isLoading={oilDataLoading}
+              />
+
               {activeTab === 'scientific' && (
                 <>
                   {hasVariable('api_gravity') && hasVariable('interval_top') && (
                     <Card className="border border-slate-200 shadow-sm overflow-hidden flex flex-col rounded-2xl bg-white" noPadding>
-                      <div className="border-b border-slate-100 p-5 pb-3 flex items-center justify-between">
-                        <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                          <h4 className="text-sm font-bold text-slate-800">API Gravity vs Depth</h4>
+                      <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                        <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                          <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">API Gravity vs Depth</h4>
                         </div>
                       </div>
                       <div className="p-5">
@@ -616,14 +619,6 @@ export const OilCompositionDashboard: React.FC = () => {
                       </div>
                     </Card>
                   )}
-
-
-                  <DashboardDatasetTable
-                    title="Oil Composition Dataset Records"
-                    data={oilData}
-                    variables={oilDataset?.variables}
-                    isLoading={oilDataLoading}
-                  />
                 </>
               )}
 

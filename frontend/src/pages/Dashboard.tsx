@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Database, Layers, Filter, RefreshCw, BarChart2, CheckSquare, Square, Search, Sliders, FileText, Download, Flame } from 'lucide-react';
+import { Database, Layers, Filter, RefreshCw, BarChart2, CheckSquare, Square, Search, Sliders, FileText, Download, Flame, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { KpiCard } from '../components/common/KpiCard';
 import { Spinner } from '../components/common/Spinner';
@@ -134,6 +134,7 @@ export const Dashboard: React.FC = () => {
   };
 
   // Ad-hoc interactive chart builder state
+  const [showCustomBuilder, setShowCustomBuilder] = useState<boolean>(false);
   const [xVar, setXVar] = useState<string>('');
   const [yVar, setYVar] = useState<string>('');
   const [zVar, setZVar] = useState<string>('');
@@ -157,8 +158,21 @@ export const Dashboard: React.FC = () => {
   const paramDataset = searchParams.get('dataset');
 
   const sourceRockDatasets = React.useMemo(() => {
-    return datasets?.filter((d) => 
+    if (!datasets || datasets.length === 0) return [];
+    
+    // Priority: explicitly match the configured source rock datasets
+    const exactSourceRock = datasets.filter((d) => 
+      ['core_source_rock', 'cutting_source_rock', 'core_sourcerock_kdmipe', 'cutting_sourcerock_kdmipe', 'swc_sourcerock', 'swc_sourcerock_kdmipe'].includes(d.name.toLowerCase()) ||
+      (d.module === 'geochemistry' && (d.sql_table_name?.toUpperCase().includes('SOURCEROCK') || d.sql_table_name?.toUpperCase().includes('SOURCE_ROCK')))
+    );
+    
+    if (exactSourceRock.length > 0) {
+      return exactSourceRock;
+    }
+
+    return datasets.filter((d) => 
       d.module === 'geochemistry' && 
+      !d.name.startsWith('w_') &&
       d.name !== 'petroleum_geochem' && 
       d.name !== 'combined' &&
       !d.name.toLowerCase().includes('vro') &&
@@ -167,7 +181,7 @@ export const Dashboard: React.FC = () => {
       !d.display_name.toLowerCase().includes('vro') &&
       !d.display_name.toLowerCase().includes('vitrinite') &&
       !d.display_name.toLowerCase().includes('kinetic')
-    ) || [];
+    );
   }, [datasets]);
 
   // Sync selectedDatasetId from URL param
@@ -178,9 +192,13 @@ export const Dashboard: React.FC = () => {
     if (paramDataset) {
       const match = paramDataset.toLowerCase();
       if (match === 'core') {
-        matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('core') || d.display_name.toLowerCase().includes('core'));
+        matched = sourceRockDatasets.find(d => d.name === 'core_source_rock' || d.name === 'core_sourcerock_kdmipe')
+               || sourceRockDatasets.find(d => d.name.toLowerCase().includes('core_source') || d.display_name.toLowerCase().includes('core source'))
+               || sourceRockDatasets.find(d => d.name.toLowerCase().includes('core') || d.display_name.toLowerCase().includes('core'));
       } else if (match === 'cutting') {
-        matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting') || d.display_name.toLowerCase().includes('cutting'));
+        matched = sourceRockDatasets.find(d => d.name === 'cutting_source_rock' || d.name === 'cutting_sourcerock_kdmipe')
+               || sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting_source') || d.display_name.toLowerCase().includes('cutting source'))
+               || sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting') || d.display_name.toLowerCase().includes('cutting'));
       } else if (match === 'kinetics') {
         matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('kinetic') || d.display_name.toLowerCase().includes('kinetic'));
       } else if (match === 'vro') {
@@ -193,10 +211,11 @@ export const Dashboard: React.FC = () => {
         setSelectedDatasetId(matched.id);
       }
     } else {
-      // If no valid param, default to first or keep current if valid
+      // If no valid param, default to core or cutting if available, otherwise first
+      const defaultDs = sourceRockDatasets.find(d => d.name === 'core_source_rock' || d.name === 'cutting_source_rock') || sourceRockDatasets[0];
       const isStillPresent = sourceRockDatasets.some((d) => d.id === selectedDatasetId);
       if (selectedDatasetId === null || !isStillPresent) {
-        setSelectedDatasetId(sourceRockDatasets[0].id);
+        setSelectedDatasetId(defaultDs.id);
       }
     }
   }, [sourceRockDatasets, paramDataset]);
@@ -204,7 +223,7 @@ export const Dashboard: React.FC = () => {
   // Sync URL param from selectedDatasetId
   useEffect(() => {
     if (!activeDataset) return;
-    const name = activeDataset.display_name.toLowerCase();
+    const name = (activeDataset.name + ' ' + activeDataset.display_name).toLowerCase();
     let key = '';
     if (name.includes('core')) key = 'core';
     else if (name.includes('cutting')) key = 'cutting';
@@ -218,7 +237,7 @@ export const Dashboard: React.FC = () => {
 
   const getSelectedCard = () => {
     if (!activeDataset) return '';
-    const name = activeDataset.display_name.toLowerCase();
+    const name = (activeDataset.name + ' ' + activeDataset.display_name).toLowerCase();
     if (name.includes('core')) return 'core';
     if (name.includes('cutting')) return 'cutting';
     if (name.includes('kinetic')) return 'kinetics';
@@ -230,9 +249,13 @@ export const Dashboard: React.FC = () => {
     if (!sourceRockDatasets || sourceRockDatasets.length === 0) return;
     let matched = null;
     if (cardKey === 'core') {
-      matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('core') || d.display_name.toLowerCase().includes('core'));
+      matched = sourceRockDatasets.find(d => d.name === 'core_source_rock' || d.name === 'core_sourcerock_kdmipe')
+             || sourceRockDatasets.find(d => d.name.toLowerCase().includes('core_source') || d.display_name.toLowerCase().includes('core source'))
+             || sourceRockDatasets.find(d => d.name.toLowerCase().includes('core') || d.display_name.toLowerCase().includes('core'));
     } else if (cardKey === 'cutting') {
-      matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting') || d.display_name.toLowerCase().includes('cutting'));
+      matched = sourceRockDatasets.find(d => d.name === 'cutting_source_rock' || d.name === 'cutting_sourcerock_kdmipe')
+             || sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting_source') || d.display_name.toLowerCase().includes('cutting source'))
+             || sourceRockDatasets.find(d => d.name.toLowerCase().includes('cutting') || d.display_name.toLowerCase().includes('cutting'));
     } else if (cardKey === 'kinetics') {
       matched = sourceRockDatasets.find(d => d.name.toLowerCase().includes('kinetic') || d.display_name.toLowerCase().includes('kinetic'));
     } else if (cardKey === 'vro') {
@@ -966,7 +989,7 @@ export const Dashboard: React.FC = () => {
           ...filters,
         },
       }).then((res) => res.data),
-    enabled: !!selectedDatasetId && (!!xVar || chartType === 'correlation_matrix'),
+    enabled: !!selectedDatasetId && showCustomBuilder && (!!xVar || chartType === 'correlation_matrix'),
   });
 
 
@@ -1249,6 +1272,14 @@ export const Dashboard: React.FC = () => {
       {/* Main Core Layout: Dynamic Data visualizer */}
       <div className="space-y-6">
         
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title={`${activeDataset?.display_name || 'Source Rock'} Dataset Records`}
+          data={scientificData}
+          variables={activeDataset?.variables}
+          isLoading={scientificLoading}
+        />
+
         {/* Dynamic Visualizations Area */}
         <div className="space-y-6">
           <Card noPadding>
@@ -1287,11 +1318,13 @@ export const Dashboard: React.FC = () => {
                         <div className="grid grid-cols-1 gap-8 animate-fade-in w-full">
                           {visibleCharts.map((chart) => (
                               <Card key={chart.id} className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl">
-                                 <div className="border-b border-slate-100 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                   <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                                     <h4 className="text-sm font-bold text-slate-800">{chart.title}</h4>
+                                 <div className="border-b border-slate-100 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                   <div className="w-full sm:w-auto flex-1 flex justify-center text-center">
+                                     <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                                       <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">{chart.title}</h4>
+                                     </div>
                                    </div>
-                                   <div className="flex items-center gap-3 self-start sm:self-auto">
+                                   <div className="flex items-center gap-3 self-center sm:self-auto shrink-0">
                                      {chart.id === 's2_vs_toc' && (
                                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200/50 shadow-4xs">
                                          <button
@@ -1351,9 +1384,9 @@ export const Dashboard: React.FC = () => {
                                      )}
                                    </div>
                                  </div>
-                                <div className="flex-1 flex flex-col lg:flex-row gap-6 w-full">
-                                  <div className="flex-1">
-                                    <DynamicPlotlyChart
+                                 <div className="flex-1 flex flex-col lg:flex-row gap-6 w-full min-w-0">
+                                   <div className="flex-1 min-w-0 w-full">
+                                     <DynamicPlotlyChart
                                       chartType={chart.chartType}
                                       data={chart.data}
                                       xLabel={chart.xLabel}
@@ -1518,143 +1551,161 @@ export const Dashboard: React.FC = () => {
                     })()}
                 </div>
 
-                {/* ── SECTION 2: Dynamic Interactive Custom Chart Builder ── */}
-                <div className="pt-8 border-t border-slate-200 space-y-4">
-                  <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-sm font-bold text-slate-800">Interactive Custom Chart Builder</h3>
-                    <p className="text-[10px] text-slate-400">
-                      Build, custom-configure, and save dynamic crossplots from any registered scientific variable.
-                    </p>
+                {/* ── SECTION 2: Dynamic Interactive Custom Chart Builder (Collapsible) ── */}
+                <div className="pt-6 border-t border-slate-200">
+                  <div 
+                    onClick={() => setShowCustomBuilder(prev => !prev)}
+                    className="flex items-center justify-between p-4 bg-slate-50/80 hover:bg-slate-100/80 cursor-pointer rounded-xl border border-slate-200/80 transition-all select-none shadow-2xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-ongc-blue/10 text-ongc-blue">
+                        <Sliders className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-800">Dynamic Interactive Custom Chart Builder</h3>
+                          <Badge label={showCustomBuilder ? 'Open' : 'Collapsed'} customColor={showCustomBuilder ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} />
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Build, custom-configure, and plot dynamic crossplots, depth profiles, distributions & matrices from any registered scientific variable.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                      <span>{showCustomBuilder ? 'Hide Builder' : 'Expand Builder'}</span>
+                      {showCustomBuilder ? (
+                        <ChevronDown className="w-4 h-4 text-slate-500" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-slate-500" />
+                      )}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
-                    <div>
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">X Variable</label>
-                      <select
-                        value={xVar}
-                        onChange={(e) => setXVar(e.target.value)}
-                        className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                      >
-                        {activeDataset?.variables?.map((v) => (
-                          <option key={v.id} value={v.sql_column_name}>
-                            {v.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {chartType !== 'correlation_matrix' && chartType !== 'histogram' && chartType !== 'pie' && chartType !== 'treemap' && chartType !== 'sunburst' && (
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Y Variable</label>
-                        <select
-                          value={yVar}
-                          onChange={(e) => setYVar(e.target.value)}
-                          className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                        >
-                          <option value="">None (Histogram count)</option>
-                          {activeDataset?.variables
-                            ?.filter((v) => v.is_numeric)
-                            ?.map((v) => (
-                              <option key={v.id} value={v.sql_column_name}>
-                                  {v.display_name}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {chartType === '3d_scatter' && (
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Z Variable</label>
-                        <select
-                          value={zVar}
-                          onChange={(e) => setZVar(e.target.value)}
-                          className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                        >
-                          <option value="">None</option>
-                          {activeDataset?.variables
-                            ?.filter((v) => v.is_numeric)
-                            ?.map((v) => (
+                  {showCustomBuilder && (
+                    <div className="mt-4 space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">X Variable</label>
+                          <select
+                            value={xVar}
+                            onChange={(e) => setXVar(e.target.value)}
+                            className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                          >
+                            {activeDataset?.variables?.map((v) => (
                               <option key={v.id} value={v.sql_column_name}>
                                 {v.display_name}
                               </option>
                             ))}
-                        </select>
+                          </select>
+                        </div>
+
+                        {chartType !== 'correlation_matrix' && chartType !== 'histogram' && chartType !== 'pie' && chartType !== 'treemap' && chartType !== 'sunburst' && (
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Y Variable</label>
+                            <select
+                              value={yVar}
+                              onChange={(e) => setYVar(e.target.value)}
+                              className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                            >
+                              <option value="">None (Histogram count)</option>
+                              {activeDataset?.variables
+                                ?.filter((v) => v.is_numeric)
+                                ?.map((v) => (
+                                  <option key={v.id} value={v.sql_column_name}>
+                                      {v.display_name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {chartType === '3d_scatter' && (
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Z Variable</label>
+                            <select
+                              value={zVar}
+                              onChange={(e) => setZVar(e.target.value)}
+                              className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                            >
+                              <option value="">None</option>
+                              {activeDataset?.variables
+                                ?.filter((v) => v.is_numeric)
+                                ?.map((v) => (
+                                  <option key={v.id} value={v.sql_column_name}>
+                                    {v.display_name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {chartType !== 'correlation_matrix' && (
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Color / Series By</label>
+                            <select
+                              value={colorBy}
+                              onChange={(e) => setColorBy(e.target.value)}
+                              className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                            >
+                              <option value="">None</option>
+                              {activeDataset?.variables
+                                ?.filter((v) => !v.is_numeric)
+                                ?.map((v) => (
+                                  <option key={v.id} value={v.sql_column_name}>
+                                    {v.display_name}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Chart Type</label>
+                          <select
+                            value={chartType}
+                            onChange={(e) => setChartType(e.target.value)}
+                            className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
+                          >
+                            <option value="scatter">Scatter Plot</option>
+                            <option value="line">Line Graph</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="horizontal_bar">Horizontal Bar Chart</option>
+                            <option value="histogram">Histogram</option>
+                            <option value="depth_profile">Depth Profile Log</option>
+                            <option value="boxplot">Box Plot</option>
+                            <option value="violin">Violin Plot</option>
+                            <option value="area">Area Plot</option>
+                            <option value="pie">Pie Chart</option>
+                            <option value="treemap">Treemap</option>
+                            <option value="sunburst">Sunburst Chart</option>
+                            <option value="bubble">Bubble Chart</option>
+                            <option value="3d_scatter">3D Scatter Plot</option>
+                            <option value="contour">Contour Plot</option>
+                            <option value="correlation_matrix">Correlation Matrix</option>
+                          </select>
+                        </div>
                       </div>
-                    )}
 
-                    {chartType !== 'correlation_matrix' && (
-                      <div>
-                        <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Color / Series By</label>
-                        <select
-                          value={colorBy}
-                          onChange={(e) => setColorBy(e.target.value)}
-                          className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                        >
-                          <option value="">None</option>
-                          {activeDataset?.variables
-                            ?.filter((v) => !v.is_numeric)
-                            ?.map((v) => (
-                              <option key={v.id} value={v.sql_column_name}>
-                                {v.display_name}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Chart Type</label>
-                      <select
-                        value={chartType}
-                        onChange={(e) => setChartType(e.target.value)}
-                        className="w-full text-xs rounded-lg border-slate-200 bg-white py-1 px-2 focus:ring-1 focus:ring-ongc-blue"
-                      >
-                        <option value="scatter">Scatter Plot</option>
-                        <option value="line">Line Graph</option>
-                        <option value="bar">Bar Chart</option>
-                        <option value="horizontal_bar">Horizontal Bar Chart</option>
-                        <option value="histogram">Histogram</option>
-                        <option value="depth_profile">Depth Profile Log</option>
-                        <option value="boxplot">Box Plot</option>
-                        <option value="violin">Violin Plot</option>
-                        <option value="area">Area Plot</option>
-                        <option value="pie">Pie Chart</option>
-                        <option value="treemap">Treemap</option>
-                        <option value="sunburst">Sunburst Chart</option>
-                        <option value="bubble">Bubble Chart</option>
-                        <option value="3d_scatter">3D Scatter Plot</option>
-                        <option value="contour">Contour Plot</option>
-                        <option value="correlation_matrix">Correlation Matrix</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Plotly Canvas Container */}
-                  {chartLoading ? (
-                    <div className="h-80 flex items-center justify-center">
-                      <Spinner />
-                    </div>
-                  ) : (
-                    <div className="h-[500px] w-full">
-                      <DynamicPlotlyChart
-                        chartType={chartType}
-                        data={chartData || []}
-                        xLabel={xVar}
-                        yLabel={yVar}
-                        colorByLabel={colorBy || undefined}
-                        title={yVar ? `${activeDataset?.variables?.find(v => v.sql_column_name === xVar)?.display_name || xVar} vs ${activeDataset?.variables?.find(v => v.sql_column_name === yVar)?.display_name || yVar}` : `${activeDataset?.variables?.find(v => v.sql_column_name === xVar)?.display_name || xVar} Distribution`}
-                      />
+                      {/* Plotly Canvas Container */}
+                      {chartLoading ? (
+                        <div className="h-80 flex items-center justify-center">
+                          <Spinner />
+                        </div>
+                      ) : (
+                        <div className="h-[500px] w-full bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                          <DynamicPlotlyChart
+                            chartType={chartType}
+                            data={chartData || []}
+                            xLabel={xVar}
+                            yLabel={yVar}
+                            colorByLabel={colorBy || undefined}
+                            title={yVar ? `${activeDataset?.variables?.find(v => v.sql_column_name === xVar)?.display_name || xVar} vs ${activeDataset?.variables?.find(v => v.sql_column_name === yVar)?.display_name || yVar}` : `${activeDataset?.variables?.find(v => v.sql_column_name === xVar)?.display_name || xVar} Distribution`}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-
-                <DashboardDatasetTable
-                  title={`${activeDataset?.display_name || 'Source Rock'} Dataset Records`}
-                  data={scientificData}
-                  variables={activeDataset?.variables}
-                  isLoading={scientificLoading}
-                />
               </div>
             </Card>
 

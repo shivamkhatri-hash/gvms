@@ -188,18 +188,6 @@ def get_metadata(
     if not ds:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY_) if connected/populated for CSIA Isotope
-    if ds.name == "csia_isotope":
-        try:
-            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY_ WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
-            if prod_count > 0:
-                gc_dataset = db.query(DatasetRegistry).filter(DatasetRegistry.name == "gas_chromatography").first()
-                if gc_dataset:
-                    ds = gc_dataset
-                    dataset_id = cast(int, gc_dataset.id)
-        except Exception:
-            pass
-        
     # Get all filterable variables
     variables = db.query(VariableRegistry).filter(
         VariableRegistry.dataset_id == dataset_id,
@@ -296,21 +284,6 @@ def get_dynamic_records(
     # Load variables and compile mapping
     variables = db.query(VariableRegistry).filter(VariableRegistry.dataset_id == dataset_id).all()
     var_map = {cast(str, v.sql_column_name): v for v in variables}
-
-    # Redirect to Production Oil Lab database (DL_GAS_CHROMATOGRAPHY_) if connected/populated for CSIA Isotope
-    if dataset.name == "csia_isotope":
-        try:
-            prod_count = db.execute(text("SELECT count(*) FROM DL_GAS_CHROMATOGRAPHY_ WHERE nc15 IS NOT NULL OR nc16 IS NOT NULL OR nc17 IS NOT NULL OR nc18 IS NOT NULL")).scalar() or 0
-            if prod_count > 0:
-                gc_dataset = db.query(DatasetRegistry).filter(DatasetRegistry.name == "gas_chromatography").first()
-                if gc_dataset:
-                    table_name = gc_dataset.sql_table_name or "DL_GAS_CHROMATOGRAPHY_"
-                    variables = db.query(VariableRegistry).filter(VariableRegistry.dataset_id == gc_dataset.id).all()
-                    var_map = {cast(str, v.sql_column_name): v for v in variables}
-                    dataset = gc_dataset
-                    dataset_id = cast(int, gc_dataset.id)
-        except Exception as e:
-            logger.warning(f"Failed to check production GC database: {str(e)}")
 
     # Fetch active version (only constraint for generic datasets)
     active_version = db.query(DatasetVersion).filter(

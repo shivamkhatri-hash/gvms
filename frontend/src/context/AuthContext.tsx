@@ -14,43 +14,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEFAULT_ADMIN_USER: User = {
-  id: '00000000-0000-0000-0000-000000000001',
-  email: 'admin@ongc.co.in',
-  full_name: 'GVMS Chief Geochemist (Admin)',
-  role: 'admin',
-  is_active: true,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(DEFAULT_ADMIN_USER);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = async () => {
-    let token = getStorageItem('access_token');
+    const token = getStorageItem('access_token');
     if (!token) {
-      try {
-        const data = await authService.login('admin@ongc.co.in', 'Admin@123456');
-        setStorageItem('access_token', data.access_token, true);
-        setStorageItem('refresh_token', data.refresh_token, true);
-        token = data.access_token;
-      } catch (err) {
-        console.warn('Auto-login to acquire backend token failed:', err);
-      }
-    }
-    if (!token) {
-      setUser(DEFAULT_ADMIN_USER);
+      setUser(null);
       setIsLoading(false);
       return;
     }
+
     try {
       const userData = await authService.getCurrentUser();
       setUser(userData);
     } catch (err) {
-      console.warn('Backend authentication offline, falling back to default Admin user session.');
-      setUser(DEFAULT_ADMIN_USER);
+      console.warn('Backend authentication session expired or offline:', err);
+      removeStorageItem('access_token');
+      removeStorageItem('refresh_token');
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +49,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await authService.login(email, pass);
       setStorageItem('access_token', data.access_token, rememberMe);
       setStorageItem('refresh_token', data.refresh_token, rememberMe);
-      await refreshUser();
+      
+      if (data.user) {
+        setUser(data.user);
+      } else {
+        const userData = await authService.getCurrentUser();
+        setUser(userData);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -102,3 +91,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+

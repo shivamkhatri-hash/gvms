@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
+import { applyGlobalLayoutDefaults, GLOBAL_PLOTLY_EXPORT_CONFIG, sanitizeFileName } from '../../utils/plotlyConfig';
 
 interface CustomPlotProps {
   data: any[];
@@ -128,7 +129,7 @@ const PlotlySymbol: React.FC<{ symbol?: string; color: string; size?: number }> 
   if (normSymbol.includes('bowtie')) {
     return (
       <svg width={size} height={size} viewBox="0 0 12 12" className="inline-block shrink-0">
-        <polygon points="1,1 1,11 6,6 11,11 11,1" fill={displayColor} stroke="none" />
+        <polygon points="1,1 11,1 6,11 11,11" fill={displayColor} stroke="none" />
       </svg>
     );
   }
@@ -198,9 +199,30 @@ export const CustomPlot: React.FC<CustomPlotProps> = ({
     }));
   };
 
+  // 1. Process and center the layout title
+  const propTitle = (props as any).title || '';
+  const processedLayout = applyGlobalLayoutDefaults(layout || {}, propTitle);
   const finalLayout = {
-    ...layout,
+    ...processedLayout,
     showlegend: false,
+  };
+
+  // 2. Extract graph title and configure dynamic snapshot filename
+  const titleText =
+    (typeof processedLayout.title === 'string' ? processedLayout.title : processedLayout.title?.text) ||
+    (typeof layout?.title === 'string' ? layout.title : layout?.title?.text) ||
+    (props as any).title ||
+    '';
+  const cleanFilename = sanitizeFileName(titleText);
+
+  const finalConfig = {
+    ...GLOBAL_PLOTLY_EXPORT_CONFIG,
+    ...config,
+    toImageButtonOptions: {
+      ...GLOBAL_PLOTLY_EXPORT_CONFIG.toImageButtonOptions,
+      filename: cleanFilename,
+      ...(config?.toImageButtonOptions || {}),
+    },
   };
 
   const finalData = data.map((trace) => {
@@ -250,7 +272,7 @@ export const CustomPlot: React.FC<CustomPlotProps> = ({
     }
   });
 
-  const hasVisibleLegend = layout.showlegend !== false && uniqueLegendItems.length > 0;
+  const hasVisibleLegend = layout?.showlegend !== false && uniqueLegendItems.length > 0;
 
   return (
     <div className="flex flex-col h-full w-full min-h-0">
@@ -258,7 +280,7 @@ export const CustomPlot: React.FC<CustomPlotProps> = ({
         <Plot
           data={finalData}
           layout={finalLayout}
-          config={config}
+          config={finalConfig}
           className={className}
           useResizeHandler={useResizeHandler}
           onClick={onClick}
@@ -301,3 +323,4 @@ export const CustomPlot: React.FC<CustomPlotProps> = ({
     </div>
   );
 };
+

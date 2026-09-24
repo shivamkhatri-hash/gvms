@@ -1,7 +1,7 @@
-# pyright: reportMissingTypeStubs=false
 import io
 import csv
-from typing import List, Dict, Any, cast
+import base64
+from typing import List, Dict, Any, cast, Optional
 import matplotlib  # type: ignore
 matplotlib.use('Agg')  # Set non-interactive backend at module level before importing pyplot
 import matplotlib.pyplot as plt  # type: ignore
@@ -15,7 +15,6 @@ from reportlab.lib import colors  # type: ignore
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image  # type: ignore
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # type: ignore
 from app.models.registry import VariableRegistry
-from typing import Optional
 
 
 class ReportGenerator:
@@ -123,16 +122,17 @@ class ReportGenerator:
         dataset_display_name: str,
         variables: List[VariableRegistry],
         records: List[Dict[str, Any]],
-        selected_graphs: Optional[List[Dict[str, Any]]] = None
+        selected_graphs: Optional[List[Dict[str, Any]]] = None,
+        snapshots: Optional[List[Dict[str, str]]] = None
     ) -> bytes:
-        """Dynamically generate a styled landscape or portrait PDF containing the dataset and summary."""
+        """Dynamically generate a styled landscape or portrait PDF containing the dataset, summary, and direct graph snapshots."""
         # 1. Filter columns that are visible (max 8 columns for layout rendering)
         pdf_vars = [v for v in variables if v.is_visible][:8]
         if not pdf_vars:
             pdf_vars = variables[:6]
 
         # 2. Determine page layout: Landscape for wide tables
-        use_landscape = len(pdf_vars) > 5
+        use_landscape = len(pdf_vars) > 5 or (snapshots and len(snapshots) > 0)
         page_size = landscape(A4) if use_landscape else A4
         printable_width = (842 - 72) if use_landscape else (595 - 72)
 
@@ -172,6 +172,15 @@ class ReportGenerator:
             fontSize=11,
             textColor=colors.HexColor('#003366'),
             spaceBefore=8,
+            spaceAfter=6
+        )
+        chart_caption_style = ParagraphStyle(
+            'ChartCaptionStyle',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            textColor=colors.HexColor('#1E293B'),
+            alignment=1,  # Center
             spaceAfter=6
         )
 
@@ -240,8 +249,37 @@ class ReportGenerator:
         ]))
         elements.append(t)
 
-        # 5. Selected Subsurface Charts & Visualizations
-        if selected_graphs and records:
+        # 5. Direct Plotly Graph Snapshots (if provided from frontend client)
+        if snapshots and len(snapshots) > 0:
+            elements.append(Spacer(1, 20))
+            elements.append(Paragraph("Direct Laboratory Graph Snapshots", section_style))
+            elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#CBD5E1'), spaceAfter=15))
+
+            img_w = 480 if use_landscape else 400
+            img_h = 300 if use_landscape else 250
+
+            for snap in snapshots:
+                try:
+                    title = snap.get("title", "Laboratory Plot Snapshot")
+                    img_b64 = snap.get("image_base64", "")
+                    if not img_b64:
+                        continue
+                    if "," in img_b64:
+                        img_b64 = img_b64.split(",", 1)[1]
+                    raw_bytes = base64.b64decode(img_b64)
+                    
+                    elements.append(Paragraph(f"<b>{title}</b>", chart_caption_style))
+                    snap_img = Image(io.BytesIO(raw_bytes), width=img_w, height=img_h)
+                    snap_img.hAlign = 'CENTER'
+                    elements.append(snap_img)
+                    elements.append(Spacer(1, 15))
+                except Exception as ex:
+                    print(f"Error embedding direct Plotly snapshot in PDF: {ex}")
+                    elements.append(Paragraph(f"[!] Error embedding snapshot '{snap.get('title')}'", styles['Normal']))
+                    elements.append(Spacer(1, 10))
+
+        # 6. Selected Subsurface Charts & Visualizations (fallback / backend rendering)
+        elif selected_graphs and records:
             elements.append(Spacer(1, 20))
             elements.append(Paragraph("Visualizations & Dynamic Interpretations", section_style))
             elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#CBD5E1'), spaceAfter=15))
@@ -273,8 +311,6 @@ class ReportGenerator:
                                 y_label = f"{v.display_name}{unit}"
                                 break
 
-                    print(f"DEBUG_LABEL: x_col={x_col} -> x_label={x_label} | y_col={y_col} -> y_label={y_label}", flush=True)
-
                     img_bytes = ReportGenerator._create_matplotlib_plot(
                         chart_type=g_type,
                         x_col=x_col,
@@ -286,7 +322,7 @@ class ReportGenerator:
                     )
                     
                     if img_bytes:
-                        chart_img = Image(io.BytesIO(img_bytes), width=360, height=240)
+                        chart_img = Image(io.BytesIO(img_bytes), width=420, height=270)
                         chart_img.hAlign = 'CENTER'
                         elements.append(chart_img)
                         elements.append(Spacer(1, 15))
@@ -708,8 +744,73 @@ class ReportGenerator:
                 y_label = "δ13C (‰)"
                 ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
 
+            elif chart_type in ['oleanane_vs_bicadinane', 'hopane_oleanane_bcd', 'hopane_crossplot']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xlim(0, 1.0)
+                ax.set_ylim(0, 1.0)
+                # Tertiary biomarker indicator threshold lines
+                ax.axvline(0.2, color='#0284c7', linestyle='--', linewidth=0.8, alpha=0.7, label='Oleanane > 0.2 (Tertiary Input)')
+                ax.axhline(0.1, color='#ec4899', linestyle='--', linewidth=0.8, alpha=0.7, label='Bicadinane > 0.1 (SE Asian Resin/Deltaic)')
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type in ['diahopane_vs_bnh', 'hopane_c29h_diasterane']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xlim(0, 1.0)
+                ax.set_ylim(0, 1.0)
+                ax.axvline(0.2, color='#16a34a', linestyle='--', linewidth=0.8, alpha=0.6)
+                ax.axhline(0.2, color='#f59e0b', linestyle='--', linewidth=0.8, alpha=0.6)
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type == 'c29ts_vs_oleanane':
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xlim(0, 1.0)
+                ax.set_ylim(0, 1.0)
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type in ['sterane_c29_maturity', 'sterane_crossplot']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xlim(0, 0.7)
+                ax.set_ylim(0, 0.8)
+                # Maturity Equilibrium Box
+                ax.axvspan(0.52, 0.55, color='#10b981', alpha=0.15, label='20S Equilibrium (0.52-0.55)')
+                ax.axhspan(0.67, 0.71, color='#8b5cf6', alpha=0.15, label='ββ Equilibrium (0.67-0.71)')
+                ax.legend(loc='lower right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type in ['aromatic_vrc_depth', 'aromatic_mpi_depth', 'hopane_depth_profiles', 'sterane_diast_c27_c29', 'etr_depth_profile', 'pr_ph_profile']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.invert_yaxis()
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type in ['aromatic_dbt_phe_vs_pr_ph', 'tricyclic_crossplot']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type == 'bernard_diagram':
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xscale('log')
+                ax.set_xlim(1.0, 10000.0)
+                ax.set_ylim(-80.0, -20.0)
+                # Biogenic vs Thermogenic dividing lines
+                ax.axvline(1000.0, color='#64748B', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.axhline(-55.0, color='#64748B', linestyle='--', linewidth=0.8, alpha=0.7)
+                ax.text(3000.0, -68.0, "Biogenic / Microbial Gas", fontsize=7, color='#0284c7', fontweight='bold', ha='center')
+                ax.text(30.0, -38.0, "Thermogenic Gas\n(Associated / Condensate)", fontsize=7, color='#dc2626', fontweight='bold', ha='center')
+                ax.legend(loc='lower left', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type == 'whiticar_plot':
+                plot_grouped_scatter(x_col, y_col)
+                ax.set_xlim(-85.0, -25.0)
+                ax.set_ylim(-400.0, -100.0)
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
+            elif chart_type in ['gas_composition_bar', 'gas_composition_distribution']:
+                plot_grouped_scatter(x_col, y_col)
+                ax.legend(loc='upper right', fontsize=6, frameon=True, facecolor='#ffffff', edgecolor='#e2e8f0')
+
             else: # Standard scatter
-                ax.scatter(x_vals, y_vals, color='#10B981', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
+                has_plotted = plot_grouped_scatter(x_col, y_col)
+                if not has_plotted and x_vals and y_vals:
+                    ax.scatter(x_vals, y_vals, color='#10B981', alpha=0.8, edgecolors='white', linewidths=0.5, s=35, zorder=5)
 
             # Automatically invert Y-axis if label/column suggests depth profiles
             if y_col and any(d in y_col.lower() for d in ['depth', 'top', 'bottom', 'interval_top']):
@@ -717,7 +818,7 @@ class ReportGenerator:
                     ax.invert_yaxis()
 
             # Log-scale Bernard Diagram isotope ratios automatically
-            if x_col and x_col.lower() == 'c1_by_c2_plus_c3':
+            if x_col and x_col.lower() in ['c1_by_c2_plus_c3', 'c1_c2_plus_c3']:
                 ax.set_xscale('log')
                 ax.set_xlim(1.0, 10000.0)
 

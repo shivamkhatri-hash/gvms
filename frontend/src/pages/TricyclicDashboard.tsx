@@ -220,6 +220,16 @@ export const TricyclicDashboard: React.FC = () => {
     refetchTricyclic();
   };
 
+  // Export report with direct on-screen Plotly graph snapshots
+  const handleExportPDF = async () => {
+    if (!selectedDatasetId) return;
+    try {
+      await reportsService.downloadReportWithSnapshots(selectedDatasetId, serializedFilters);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+    }
+  };
+
 
 
   // Generate Plotly traces for TT / TeT Ratio Plot
@@ -312,15 +322,7 @@ export const TricyclicDashboard: React.FC = () => {
     });
   };
 
-  // Export report
-  const handleExportPDF = async () => {
-    if (!selectedDatasetId) return;
-    try {
-      await reportsService.downloadReport('pdf', selectedDatasetId, serializedFilters);
-    } catch (err) {
-      console.error('Failed to export PDF:', err);
-    }
-  };
+
 
   if (datasetsLoading) {
     return (
@@ -565,6 +567,14 @@ export const TricyclicDashboard: React.FC = () => {
         </div>
 
         {/* Tab Contents */}
+        {/* Dataset Records Table (Default Collapsed at Top) */}
+        <DashboardDatasetTable
+          title="Tricyclic Terpane Biomarker Dataset Records"
+          data={tricyclicData}
+          variables={tricyclicDataset?.variables}
+          isLoading={tricyclicDataLoading}
+        />
+
         {activeTab === 'scientific' && (
           <div className="space-y-6">
             {tricyclicDataLoading ? (
@@ -584,13 +594,14 @@ export const TricyclicDashboard: React.FC = () => {
 
                 {/* Graph 7: TT / TeT Ratio Plot */}
                 <Card className="border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full p-5 rounded-2xl bg-white" noPadding>
-                  <div className="border-b border-slate-100 p-5 pb-3">
-                    <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-                      <h4 className="text-sm font-bold text-slate-800">TT / TeT RATIO PLOT</h4>
+                  <div className="border-b border-slate-100 p-5 pb-3 flex justify-center text-center">
+                    <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50/50 shadow-2xs">
+                      <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">TT / TeT RATIO PLOT</h4>
                     </div>
                   </div>
                   <div className="p-0 w-full h-[760px]">
                     <Plot
+                      title="TT / TeT RATIO PLOT"
                       data={renderTTRatioTraces(tricyclicData)}
                       layout={getCommonLayout(
                         '',
@@ -603,13 +614,6 @@ export const TricyclicDashboard: React.FC = () => {
                     />
                   </div>
                 </Card>
-
-                <DashboardDatasetTable
-                  title="Tricyclic Terpane Biomarker Dataset Records"
-                  data={tricyclicData}
-                  variables={tricyclicDataset?.variables}
-                  isLoading={tricyclicDataLoading}
-                />
               </div>
 
             )}

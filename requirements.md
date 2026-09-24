@@ -44,9 +44,10 @@ These packages are installed in the Python virtual environment (`venv`). You do 
 *   `python-dateutil` (v2.9.0+) — Date/time parser helpers.
 *   `email-validator` (v2.0.0+) — Email string verification.
 *   `bcrypt` (v4.0.1) — Cryptographic dependency for security.
-*   `oracledb` (v2.0.0+) — Oracle database support (optional fallback).
+*   `oracledb` (v2.0.0+) — Official Python-Oracle DB driver supporting regional connection pooling & Oracle 11g/19c schemas.
 *   `plotly` (v5.18.0+) — Analytical plot configuration structures.
 *   `matplotlib` (v3.8.0+) — Secondary graphing rendering backend.
+
 
 ### How to Download & Install Offline:
 1.  **On Development PC (with internet)**: In the `backend` folder, download all library package files (`.whl`) to a folder named `wheelhouse`:

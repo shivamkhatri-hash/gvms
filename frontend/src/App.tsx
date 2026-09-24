@@ -23,6 +23,9 @@ import { InorganicDashboard } from './pages/InorganicDashboard';
 import { SurfaceDashboard } from './pages/SurfaceDashboard';
 import { OilCrossPlotDashboard } from './pages/OilCrossPlotDashboard';
 import { Spinner } from './components/common/Spinner';
+import { LabRouteGuard } from './components/common/LabRouteGuard';
+
+import { hasLabAccess, getFirstAccessibleRoute } from './utils/rbac';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,10 +58,55 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    const fallback = getFirstAccessibleRoute(user);
+    return <Navigate to={fallback} replace />;
   }
 
   return <>{children}</>;
+};
+
+const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-ongc-bg flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    const fallback = getFirstAccessibleRoute(user);
+    return <Navigate to={fallback} replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const RootIndexRoute: React.FC = () => {
+  const { user } = useAuth();
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (hasLabAccess(user, 'source-rock')) {
+    return (
+      <LabRouteGuard labKey="source-rock" labName="Core Lab">
+        <Dashboard />
+      </LabRouteGuard>
+    );
+  }
+
+  const targetRoute = getFirstAccessibleRoute(user);
+  if (targetRoute && targetRoute !== '/') {
+    return <Navigate to={targetRoute} replace />;
+  }
+
+  return (
+    <LabRouteGuard labKey="source-rock" labName="Core Lab">
+      <Dashboard />
+    </LabRouteGuard>
+  );
 };
 
 export const App: React.FC = () => {
@@ -67,7 +115,14 @@ export const App: React.FC = () => {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <Login />
+                </PublicOnlyRoute>
+              }
+            />
 
             <Route
               path="/"
@@ -77,41 +132,152 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Dashboard />} />
-              <Route path="dynamic-dashboard" element={<DynamicDashboard />} />
+              {/* Root / Source Rock Laboratory Module Routing */}
+              <Route
+                index
+                element={<RootIndexRoute />}
+              />
+              <Route
+                path="dynamic-dashboard"
+                element={
+                  <LabRouteGuard labKey="analytics" labName="Analytics">
+                    <DynamicDashboard />
+                  </LabRouteGuard>
+                }
+              />
               <Route
                 path="metabase"
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'researcher']}>
-                    <MetabaseView />
+                    <LabRouteGuard labKey="analytics" labName="Analytics">
+                      <MetabaseView />
+                    </LabRouteGuard>
                   </ProtectedRoute>
                 }
               />
               <Route path="reports" element={<Reports />} />
 
               {/* Oil Laboratory Module Routing */}
-              <Route path="oil/dashboard" element={<GasChromatographyDashboard />} />
-              <Route path="oil/composition-dashboard" element={<OilCompositionDashboard />} />
-              <Route path="oil/cross-plot" element={<OilCrossPlotDashboard />} />
-              <Route path="oil/reports" element={<Reports module="oil" />} />
+              <Route
+                path="oil/dashboard"
+                element={
+                  <LabRouteGuard labKey="oil" labName="Oil Lab">
+                    <GasChromatographyDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="oil/composition-dashboard"
+                element={
+                  <LabRouteGuard labKey="oil" labName="Oil Lab">
+                    <OilCompositionDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="oil/cross-plot"
+                element={
+                  <LabRouteGuard labKey="oil" labName="Oil Lab">
+                    <OilCrossPlotDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="oil/reports"
+                element={
+                  <LabRouteGuard labKey="oil" labName="Oil Lab">
+                    <Reports module="oil" />
+                  </LabRouteGuard>
+                }
+              />
 
               {/* Isotope Laboratory Module Routing */}
-              <Route path="isotope/dashboard" element={<GasIsotopeDashboard />} />
-              <Route path="isotope/reports" element={<Reports module="isotope" />} />
+              <Route
+                path="isotope/dashboard"
+                element={
+                  <LabRouteGuard labKey="isotope" labName="Isotope Lab">
+                    <GasIsotopeDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="isotope/reports"
+                element={
+                  <LabRouteGuard labKey="isotope" labName="Isotope Lab">
+                    <Reports module="isotope" />
+                  </LabRouteGuard>
+                }
+              />
 
               {/* IGC (Inorganic Geochemistry) Laboratory Module Routing */}
-              <Route path="igc/dashboard" element={<InorganicDashboard />} />
+              <Route
+                path="igc/dashboard"
+                element={
+                  <LabRouteGuard labKey="igc" labName="Inorganic Lab">
+                    <InorganicDashboard />
+                  </LabRouteGuard>
+                }
+              />
 
               {/* Surface Geochemistry / MBER Module Routing */}
-              <Route path="surface/dashboard" element={<SurfaceDashboard />} />
+              <Route
+                path="surface/dashboard"
+                element={
+                  <LabRouteGuard labKey="surface" labName="Surface Lab">
+                    <SurfaceDashboard />
+                  </LabRouteGuard>
+                }
+              />
 
               {/* Biomarker Laboratory Module Routing */}
-              <Route path="biomarker/sterane-dashboard" element={<SteraneDashboard />} />
-              <Route path="biomarker/hopane-dashboard" element={<HopaneDashboard />} />
-              <Route path="biomarker/tricyclic-dashboard" element={<TricyclicDashboard />} />
-              <Route path="biomarker/aromatic-dashboard" element={<AromaticDashboard />} />
-              <Route path="biomarker/pr-ph-dashboard" element={<PrPhDashboard />} />
-              <Route path="biomarker/reports" element={<Reports module="biomarker" />} />
+              <Route
+                path="biomarker/sterane-dashboard"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <SteraneDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="biomarker/hopane-dashboard"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <HopaneDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="biomarker/tricyclic-dashboard"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <TricyclicDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="biomarker/aromatic-dashboard"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <AromaticDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="biomarker/pr-ph-dashboard"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <PrPhDashboard />
+                  </LabRouteGuard>
+                }
+              />
+              <Route
+                path="biomarker/reports"
+                element={
+                  <LabRouteGuard labKey="biomarker" labName="Biomarker Lab">
+                    <Reports module="biomarker" />
+                  </LabRouteGuard>
+                }
+              />
               <Route
                 path="users"
                 element={

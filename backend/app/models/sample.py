@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -18,7 +17,7 @@ class PetroleumData(Base):
     s2_classification = Column(String(50), nullable=False)
     interpretation = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     uploader = relationship("User", back_populates="samples")

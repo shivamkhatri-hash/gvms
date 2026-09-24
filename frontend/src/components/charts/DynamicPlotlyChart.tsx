@@ -1,6 +1,6 @@
 import React from 'react';
 import { CustomPlot as Plot } from './CustomPlot';
-import { applyGlobalLayoutDefaults, GLOBAL_PLOTLY_EXPORT_CONFIG } from '../../utils/plotlyConfig';
+import { applyGlobalLayoutDefaults, GLOBAL_PLOTLY_EXPORT_CONFIG, getPlotlyExportConfig } from '../../utils/plotlyConfig';
 
 interface DataPoint {
   x: any;
@@ -95,20 +95,20 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     return (
       <div className="w-full h-[620px] bg-white border border-slate-200 rounded-lg flex flex-col overflow-hidden shadow-none">
         {title && (
-          <div className="border-b border-slate-100 p-5 pb-3">
-            <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-              <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+          <div className="border-b border-slate-100 p-4 pb-2.5 flex justify-center text-center">
+            <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50 shadow-2xs">
+              <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">{title}</h4>
             </div>
           </div>
         )}
         <div className="flex-1 p-5 min-h-0">
           <Plot
             data={plotData}
-            layout={{ ...layout, title: undefined }}
+            layout={layout}
+            title={title}
             useResizeHandler={true}
             className="w-full h-full"
-            config={{
-              ...GLOBAL_PLOTLY_EXPORT_CONFIG,
+            config={getPlotlyExportConfig(title, {
               modeBarButtonsToRemove: [
                 'select2d',
                 'lasso2d',
@@ -119,7 +119,7 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
                 'hoverCompareCartesian',
                 'hoverClosestCartesian'
               ]
-            }}
+            })}
           />
         </div>
       </div>
@@ -493,7 +493,8 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
   if (chartType === 's2_vs_toc') {
     layout.paper_bgcolor = '#FFFFFF';
     layout.plot_bgcolor = '#FFFFFF';
-    layout.margin = { l: 50, r: 25, t: 25, b: 50 };
+    layout.margin = { l: 60, r: 35, t: 30, b: 60 };
+    layout.autosize = true;
 
     layout.xaxis.showline = true;
     layout.xaxis.mirror = true;
@@ -504,9 +505,6 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     layout.yaxis.mirror = true;
     layout.yaxis.linecolor = '#000000';
     layout.yaxis.linewidth = 2.5;
-
-    layout.yaxis.scaleanchor = 'x';
-    layout.yaxis.scaleratio = 1;
 
     layout.xaxis.type = 'log';
     layout.xaxis.range = [Math.log10(0.1), Math.log10(100)];
@@ -556,7 +554,8 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
   if (chartType === 'hi_vs_tmax') {
     layout.paper_bgcolor = '#FFFFFF';
     layout.plot_bgcolor = '#FFFFFF';
-    layout.margin = { l: 50, r: 25, t: 25, b: 50 };
+    layout.margin = { l: 60, r: 35, t: 30, b: 60 };
+    layout.autosize = true;
 
     layout.xaxis.showline = true;
     layout.xaxis.mirror = true;
@@ -567,9 +566,6 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
     layout.yaxis.mirror = true;
     layout.yaxis.linecolor = '#000000';
     layout.yaxis.linewidth = 2.5;
-
-    layout.yaxis.scaleanchor = 'x';
-    layout.yaxis.scaleratio = 0.087912;
 
     // X-axis limits: 400 to 500 °C
     layout.xaxis.range = [400, 500];
@@ -835,16 +831,17 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
   return (
     <div className={containerClasses}>
       {title && (
-        <div className="border-b border-slate-100 p-5 pb-3">
-          <div className="inline-block border border-slate-200/80 px-3 py-1 rounded-lg bg-slate-50/50 shadow-2xs">
-            <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+        <div className="border-b border-slate-100 p-4 pb-2.5 flex justify-center text-center">
+          <div className="inline-block border border-slate-200/80 px-4 py-1.5 rounded-lg bg-slate-50 shadow-2xs">
+            <h4 className="text-base font-bold text-slate-800 tracking-tight text-center">{title}</h4>
           </div>
         </div>
       )}
       <div className={bodyClasses}>
         <Plot
           data={traces}
-          layout={{ ...layout, title: undefined }}
+          layout={layout}
+          title={title}
           useResizeHandler={true}
           className="w-full h-full"
           onClick={(data) => {
@@ -855,8 +852,7 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
               }
             }
           }}
-          config={{
-            ...GLOBAL_PLOTLY_EXPORT_CONFIG,
+          config={getPlotlyExportConfig(title, {
             modeBarButtonsToRemove: [
               'select2d',
               'lasso2d',
@@ -867,7 +863,7 @@ export const DynamicPlotlyChart: React.FC<DynamicPlotlyChartProps> = ({
               'hoverCompareCartesian',
               'hoverClosestCartesian'
             ]
-          }}
+          })}
         />
       </div>
     </div>
